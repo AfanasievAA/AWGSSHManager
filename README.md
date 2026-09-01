@@ -3,6 +3,9 @@
 A Windows GUI application built with PowerShell and Windows Forms to manage AmneziaWG servers installed via the amneziawg-installer script.
 
 Приложение с графическим интерфейсом для Windows, написанное на PowerShell и Windows Forms, предназначенное для управления серверами AmneziaWG, установленными через скрипт amneziawg-installer.
+
+https://github.com/bivlked/amneziawg-installer
+
 <img width="875" height="506" alt="Снимок" src="https://github.com/user-attachments/assets/fcfc28c6-c49e-4da7-a2dc-7061e89f308b" />
 <img width="876" height="509" alt="Снимок2" src="https://github.com/user-attachments/assets/f50d2d07-9ce5-494f-82a9-0824cf81b282" />
 
