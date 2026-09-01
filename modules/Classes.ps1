@@ -1,7 +1,7 @@
 #requires -Version 7.5
 # =============================================================================
 #  Classes.ps1 — Core classes for AmneziaWG Admin (SSH.NET powered)
-#  Version: 0.2
+#  Version: 0.3
 #  Description: Defines SSHProfile, SSHManager, ProfileManager, and ClientManager.
 #               Uses SSH.NET for persistent, high-speed connections.
 # =============================================================================
@@ -149,6 +149,18 @@ class SSHManager {
         }
         
         return $this.RunBash($remoteCmd, $stdinData, 60)
+    }
+
+    [bool] UploadFile([string]$localPath, [string]$remotePath) {
+        try {
+            $this.Connect()
+            $fileInfo = [System.IO.FileInfo]::new($localPath)
+            $this.ScpClient.Upload($fileInfo, $remotePath)
+            return $true
+        }
+        catch {
+            return $false
+        }
     }
 
     [bool] DownloadFile([string]$remotePath, [string]$localPath) {
@@ -386,6 +398,11 @@ class ClientManager {
 
         $result = $this.ssh.InvokeCommand($cmd)
         return $this.ParseJson($result, "regen")
+    }
+
+    [PSCustomObject] RestoreBackup([string]$remotePath) {
+        $result = $this.ssh.InvokeCommand("restore $remotePath")
+        return $this.ParseJson($result, "restore")
     }
 
     [hashtable] CreateBackup() {

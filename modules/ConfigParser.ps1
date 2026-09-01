@@ -1,7 +1,7 @@
 ﻿#requires -Version 7.5
 # =============================================================================
 #  ConfigParser.ps1 — AmneziaWG config and JSON response parser
-#  Version: 0.1
+#  Version: 0.2
 #  Description: Parses .conf files and JSON responses from manage_amneziawg.sh.
 #               Provides validation, formatting, and utility functions.
 # =============================================================================
@@ -166,90 +166,88 @@ function ConvertFrom-AWGClientConfig {
     return $result
 }
 
-function ConvertTo-AWGClientConfig {
+function ConvertFrom-AWGJsonResponse {
     <#
     .SYNOPSIS
-        Builds .conf file text from a config object.
+        Safely parses JSON response from manage_amneziawg.sh.
     .DESCRIPTION
-        Supports two modes:
-        1. Object created by ConvertFrom-AWGClientConfig — full fidelity
-           (preserves key order and unknown parameters).
-        2. Minimal object with convenience properties (PrivateKey, Address,
-           DNS, MTU, AWGParams, ServerPublicKey, ...).
-        If convenience properties are NOT null — they take priority over
-        dictionary values ("parse → modify → build" mode).
+        Contract guarantee: stdout contains EXACTLY one JSON document.
+        All human-readable messages go to stderr, so stdout is always clean.
+        Supports both response formats:
+        1. Raw array — list --json, stats --json.
+        2. Envelope {"command":"...","ok":true/false,...} — add, remove,
+           regen, modify, backup, restore, check, restart, etc.
     .OUTPUTS
-        string — .conf file text.
+        PSCustomObject:
+          IsEnvelope — true if response is envelope with ok field
+          IsArray    — true if response is raw array (list/stats)
+          Ok         — true/false (for array — always true)
+          Error      — error text from envelope or $null
+          Rc         — return code from envelope (0 if not set)
+          Data       — parsed JSON (array or envelope object)
     #>
     param(
-        [Parameter(Mandatory)][PSCustomObject]$Config
+        [Parameter(Mandatory)][string]$JsonText,
+        [string]$CommandName = ''
     )
 
-    # --- Prepare [Interface] dictionary ---
-    $iface = Get-AWGConfigProperty -Object $Config -Name 'InterfaceParams'
-    if (-not $iface) { $iface = [ordered]@{} }
-
-    $ifaceSync = [ordered]@{
-        PrivateKey = (Get-AWGConfigProperty -Object $Config -Name 'PrivateKey')
-        Address    = (Get-AWGConfigProperty -Object $Config -Name 'Address')
-        DNS        = (Get-AWGConfigProperty -Object $Config -Name 'DNS')
-        MTU        = (Get-AWGConfigProperty -Object $Config -Name 'MTU')
+    if ([string]::IsNullOrWhiteSpace($JsonText)) {
+        $ctx = if ($CommandName) { " (command: $CommandName)" } else { '' }
+        throw (Get-String -Key "Error_EmptyJSON") + $ctx
     }
-    foreach ($kv in $ifaceSync.GetEnumerator()) {
-        if ($null -ne $kv.Value -and "$kv.Value" -ne '') {
-            $iface[$kv.Key] = $kv.Value
+
+    # Contract guarantees clean JSON in stdout. No need to trim garbage.
+    $parsed = $null
+    try {
+        $parsed = $JsonText.Trim() | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        $preview = $JsonText.Substring(0, [Math]::Min(200, $JsonText.Length))
+        throw (Get-String -Key "Error_JSONParse" -Params $_.Exception.Message, $preview)
+    }
+
+    if ($null -eq $parsed) {
+        throw (Get-String -Key "Error_JSONNull")
+    }
+
+    # --- Form 1: raw array (list --json, stats --json) ---
+    if ($parsed -is [System.Array]) {
+        return [PSCustomObject]@{
+            IsEnvelope = $false
+            IsArray    = $true
+            Ok         = $true
+            Error      = $null
+            Rc         = 0
+            Data       = $parsed
         }
     }
 
-    # AWG 2.0 obfuscation parameters
-    $awg = Get-AWGConfigProperty -Object $Config -Name 'AWGParams'
-    if ($awg) {
-        foreach ($entry in $awg.GetEnumerator()) {
-            $iface[$entry.Key] = $entry.Value
+    # --- Form 2: envelope {"command":"...","ok":...} ---
+    $okProp = $parsed.PSObject.Properties['ok']
+    if ($null -ne $okProp) {
+        $errProp = $parsed.PSObject.Properties['error']
+        $rcProp  = $parsed.PSObject.Properties['rc']
+
+        return [PSCustomObject]@{
+            IsEnvelope = $true
+            IsArray    = $false
+            Ok         = [bool]$okProp.Value
+            Error      = if ($errProp) { $errProp.Value } else { $null }
+            Rc         = if ($rcProp)  { [int]$rcProp.Value } else { 0 }
+            Data       = $parsed
         }
     }
 
-    # --- Prepare [Peer] dictionary ---
-    $peer = Get-AWGConfigProperty -Object $Config -Name 'PeerParams'
-    if (-not $peer) { $peer = [ordered]@{} }
-
-    $peerSync = [ordered]@{
-        PublicKey           = (Get-AWGConfigProperty -Object $Config -Name 'ServerPublicKey')
-        PresharedKey        = (Get-AWGConfigProperty -Object $Config -Name 'PresharedKey')
-        AllowedIPs          = (Get-AWGConfigProperty -Object $Config -Name 'AllowedIPs')
-        Endpoint            = (Get-AWGConfigProperty -Object $Config -Name 'Endpoint')
-        PersistentKeepalive = (Get-AWGConfigProperty -Object $Config -Name 'PersistentKeepalive')
+    # --- Single object without envelope — treat as data ---
+    return [PSCustomObject]@{
+        IsEnvelope = $false
+        IsArray    = $false
+        Ok         = $true
+        Error      = $null
+        Rc         = 0
+        Data       = $parsed
     }
-    foreach ($kv in $peerSync.GetEnumerator()) {
-        if ($null -ne $kv.Value -and "$kv.Value" -ne '') {
-            $peer[$kv.Key] = $kv.Value
-        }
-    }
-
-    # --- Build text ---
-    $lines = [System.Collections.Generic.List[string]]::new()
-
-    $lines.Add('[Interface]')
-    foreach ($entry in $iface.GetEnumerator()) {
-        $lines.Add(('{0} = {1}' -f $entry.Key, $entry.Value))
-    }
-
-    $lines.Add('')
-    $lines.Add('[Peer]')
-
-    # Peer name marker (only if parsed from server awg0.conf)
-    $peerName = Get-AWGConfigProperty -Object $Config -Name 'PeerName'
-    if ($peerName) {
-        $lines.Add("#_Name = $peerName")
-    }
-
-    foreach ($entry in $peer.GetEnumerator()) {
-        $lines.Add(('{0} = {1}' -f $entry.Key, $entry.Value))
-    }
-
-    return ($lines -join "`n")
 }
-
 function Test-AWGConfigValid {
     <#
     .SYNOPSIS

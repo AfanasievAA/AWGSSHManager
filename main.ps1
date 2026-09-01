@@ -5,9 +5,9 @@
 .DESCRIPTION
   Entry point for the AmneziaWG Admin GUI application. Manages you Quick Amnezia WireGuard installation through GUI Interface in Windows for easy deploy for remote access users
 .NOTES
-  Version:        0.01
+  Version:        0.02
   Author:         Andrew Afanasiev
-  Date:           01 Sep 2026
+  Date:           02 Sep 2026
   Contacts:       AfanasievAA@yandex.ru
 
 Requires powershell 7.5+ and Putty be installed locally to run.
@@ -29,22 +29,6 @@ if ($PSVersionTable.PSVersion.Major -lt 7 -or
     ($PSVersionTable.PSVersion.Major -eq 7 -and $PSVersionTable.PSVersion.Minor -lt 5)) {
     Write-Host "Requires PowerShell 7.5 or higher. Current version: $($PSVersionTable.PSVersion)" -ForegroundColor Red
     Read-Host "Press Enter to exit"
-    exit 1
-}
-
-# === OpenSSH Client check ===
-$sshPath = (Get-Command ssh.exe -ErrorAction SilentlyContinue)?.Source
-if (-not $sshPath) {
-    Add-Type -AssemblyName System.Windows.Forms
-    [System.Windows.Forms.MessageBox]::Show(
-        "OpenSSH Client not found in the system.`n`nInstall it via:`n" +
-        "Settings → Apps → Optional features → OpenSSH Client`n`n" +
-        "Or via PowerShell (as Administrator):`n" +
-        "Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0",
-        "Critical Error",
-        "OK",
-        "Error"
-    )
     exit 1
 }
 

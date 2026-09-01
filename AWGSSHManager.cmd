@@ -1,5 +1,14 @@
 @echo off
 
+:: Check if PowerShell (pwsh) is installed and available in PATH
+where pwsh >nul 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo PowerShell was not found on your system.
+    echo Please download and install the latest version from: https://aka.ms/powershell
+    pause
+    exit /b 1
+)
+
 :: Full path to the PowerShell script (the folder where this .cmd resides)
 set "PS_SCRIPT=%~dp0main.ps1"
 

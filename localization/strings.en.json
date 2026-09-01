@@ -193,6 +193,12 @@
     "Backup_Downloading": "Downloading archive (may take a while)...",
     "Backup_Saved": "Backup created successfully!\n\nLocal file: $1 ($2)\nServer archive: $3\n\nArchive copy is also kept on server (/root/awg/backups/).\nRestore: transfer archive to server and run restore command.\n\n⚠ Archive contains server private keys — store in a secure location!",
     "Backup_Error": "Failed to create backup:",
+    "Actions_RestoreBackup": "Restore AWG from File...",
+    "Restore_Confirm": "Restore server from a local backup file?\n\nThis will OVERWRITE current server configuration, keys, and clients.\n\nThe file will be uploaded to the server and restored.",
+    "Restore_Uploading": "Uploading archive to server...",
+    "Restore_Restoring": "Restoring server from archive...",
+    "Restore_Restored": "Server successfully restored from backup.\n\nAWG service has been restarted.",
+    "Restore_Error": "Failed to restore backup:",
     
     "Restart_Confirm": "Restart AmneziaWG service on server?\n\nAll active connections will be terminated.",
     "Restart_Restarting": "Restarting AmneziaWG service...",

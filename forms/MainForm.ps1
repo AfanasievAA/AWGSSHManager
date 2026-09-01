@@ -1,7 +1,7 @@
 ﻿#requires -Version 7.5
 # =============================================================================
 #  MainForm.ps1 — Main application window
-#  Version: 0.1
+#  Version: 0.2
 #  Description: Main application window with server profile management,
 #               client list view, and all action buttons.
 # =============================================================================
@@ -292,6 +292,7 @@ function New-MainForm {
         @{ IsSeparator = $true }
         @{ TextKey = "Actions_Stats";         Handler = { Show-StatsDialog } }
         @{ TextKey = "Actions_Backup";        Handler = { Export-ServerConfig } }
+        @{ TextKey = "Actions_RestoreBackup"; Handler = { Import-ServerConfig } }
         @{ TextKey = "Actions_Restart";       Handler = { Restart-AWGService } }
     )
 
@@ -1120,8 +1121,76 @@ function Export-ServerConfig {
     }
 }
 
-function Restart-AWGService {
+function Import-ServerConfig {
+    if ($null -eq $script:App.ClientManager) {
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-String -Key "Msg_ConnectFirst"),
+            (Get-String -Key "Msg_Warning"),
+            "OK",
+            [System.Windows.Forms.MessageBoxIcon]::Warning)
+        return
+    }
+
     $confirm = [System.Windows.Forms.MessageBox]::Show(
+        (Get-String -Key "Restore_Confirm"),
+        (Get-String -Key "Msg_Confirm"),
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning)
+
+    if ($confirm -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+
+    $openDialog = [System.Windows.Forms.OpenFileDialog]::new()
+    $openDialog.Filter = "AmneziaWG Archive (*.tar.gz)|*.tar.gz|All files (*.*)|*.*"
+    $openDialog.Title = "Select backup file to restore"
+    $openDialog.InitialDirectory = [System.Environment]::GetFolderPath("MyDocuments")
+
+    if ($openDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
+
+    $localPath = $openDialog.FileName
+    $remotePath = "/root/awg/backups/restore_upload_$(Get-Date -Format 'yyyyMMddHHmmss').tar.gz"
+
+    Set-BusyState -Busy $true -Message (Get-String -Key "Restore_Uploading")
+
+    try {
+        $ssh = $script:App.SSHManager
+        $uploadSuccess = $ssh.UploadFile($localPath, $remotePath)
+
+        if (-not $uploadSuccess) {
+            throw (Get-String -Key "Error_BackupDownload")
+        }
+
+        Set-BusyState -Busy $true -Message (Get-String -Key "Restore_Restoring")
+
+        $cm = $script:App.ClientManager
+        $result = $cm.RestoreBackup($remotePath)
+
+        $ok = Get-AWGConfigProperty -Object $result -Name 'ok'
+        if ($ok) {
+            Set-BusyState -Busy $false -Message "Restored"
+            [System.Windows.Forms.MessageBox]::Show(
+                (Get-String -Key "Restore_Restored"),
+                (Get-String -Key "Msg_Info"),
+                "OK",
+                [System.Windows.Forms.MessageBoxIcon]::Information)
+            
+            Refresh-ClientsList
+        }
+        else {
+            $errText = Get-AWGConfigProperty -Object $result -Name 'error'
+            throw (Get-String -Key "Error_ServerReturned" -Params $errText)
+        }
+    }
+    catch {
+        Set-BusyState -Busy $false -Message "Restore error"
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-String -Key "Restore_Error" -Params $_.Exception.Message),
+            (Get-String -Key "Msg_Error"),
+            "OK",
+            [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+}
+
+function Restart-AWGService {    $confirm = [System.Windows.Forms.MessageBox]::Show(
         (Get-String -Key "Restart_Confirm"),
         (Get-String -Key "Restart_Confirm"),
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
