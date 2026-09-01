@@ -9,6 +9,9 @@
     "Server_Connect": "Connect",
     "Server_NewProfile": "New Profile...",
     "Server_EditProfile": "Edit Profile...",
+    "Server_DeleteProfile": "Delete Profile...",
+    "Profile_DeleteConfirm": "Are you sure you want to delete profile '$1'?",
+    "Error_ProfileDelete": "Error deleting profile: $1",
     "Server_Disconnected": "● Disconnected",
     
     "Actions_Title": "Actions",

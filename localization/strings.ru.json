@@ -9,8 +9,11 @@
     "Server_Connect": "Подключиться",
     "Server_NewProfile": "Новый профиль...",
     "Server_EditProfile": "Изменить профиль...",
+    "Server_DeleteProfile": "Удалить профиль...",
+    "Profile_DeleteConfirm": "Вы уверены, что хотите удалить профиль '$1'?",
+    "Error_ProfileDelete": "Ошибка удаления профиля: $1",
     "Server_Disconnected": "● Отключено",
-    
+        
     "Actions_Title": "Действия",
     "Actions_Refresh": "Обновить список",
     "Actions_AddClient": "Добавить клиента...",

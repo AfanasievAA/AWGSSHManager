@@ -75,6 +75,13 @@ function New-MainForm {
     $btnEditProfile.DisplayStyle = [System.Windows.Forms.ToolStripItemDisplayStyle]::Text
     [void]$toolStrip.Items.Add($btnEditProfile)
 
+    # --- Delete Profile button ---
+    $btnDeleteProfile = [System.Windows.Forms.ToolStripButton]::new()
+    $btnDeleteProfile.Text = Get-String -Key "Server_DeleteProfile"
+    $btnDeleteProfile.Tag = "Server_DeleteProfile"
+    $btnDeleteProfile.DisplayStyle = [System.Windows.Forms.ToolStripItemDisplayStyle]::Text
+    [void]$toolStrip.Items.Add($btnDeleteProfile)
+
     [void]$toolStrip.Items.Add([System.Windows.Forms.ToolStripSeparator]::new())
 
     # --- Language selection (right-aligned) ---
@@ -413,6 +420,46 @@ function New-MainForm {
         Show-ProfileForm -ParentForm $script:MainForm -ProfileManager $script:App.ProfileManager -Mode "Edit" -ExistingProfile $existing
         $script:App.Profiles = $script:App.ProfileManager.LoadAllProfiles()
         Initialize-ProfileComboBox
+    })
+
+    # --- Delete profile ---
+    $btnDeleteProfile.Add_Click({
+        if ($null -eq $script:cboProfile -or $script:cboProfile.SelectedIndex -lt 0) {
+            [System.Windows.Forms.MessageBox]::Show(
+                (Get-String -Key "Msg_SelectProfileEdit"),
+                (Get-String -Key "Msg_Warning"),
+                "OK",
+                [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
+
+        $profileName = [string]$script:cboProfile.SelectedItem
+
+        $confirm = [System.Windows.Forms.MessageBox]::Show(
+            (Get-String -Key "Profile_DeleteConfirm" -Params $profileName),
+            (Get-String -Key "Msg_Confirm"),
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Warning)
+        
+        if ($confirm -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+
+        # Disconnect if currently connected to this profile
+        if ($null -ne $script:App.SSHManager -and $script:App.SSHManager.IsConnected()) {
+            Disconnect-FromServer
+        }
+
+        try {
+            $script:App.ProfileManager.DeleteProfile($profileName)
+            $script:App.Profiles = $script:App.ProfileManager.LoadAllProfiles()
+            Initialize-ProfileComboBox
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show(
+                (Get-String -Key "Error_ProfileDelete" -Params $_.Exception.Message),
+                (Get-String -Key "Msg_Error"),
+                "OK",
+                [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
     })
 
     # --- Prevent form closing during busy state ---
