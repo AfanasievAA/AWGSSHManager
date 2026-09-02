@@ -3,7 +3,7 @@
 **Графическое приложение для Windows** для управления серверами **AmneziaWG**, установленными через скрипт [amneziawg-installer](https://github.com/bivlked/amneziawg-installer). 
 
 ---
-
+Как установить: Скачать все файлы (зелёная кнопка Code -> Download ZIP), распаковать в любой каталог, запустить AWGSSHManager.cmd.
 ## 📸 Скриншоты
 
 | Главное окно | Управление клиентами |
