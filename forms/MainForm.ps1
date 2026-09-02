@@ -11,6 +11,7 @@ function New-MainForm {
 
     # Initialize all script-scope variables
     $script:App               = $AppContext
+    $script:App.ServerInfo    = @{ Tools = "N/A"; Kernel = "N/A" }
     $script:MainForm          = $null
     $script:cboProfile        = $null
     $script:dgvClients        = $null
@@ -25,7 +26,7 @@ function New-MainForm {
     # Form
     # =========================================================================
     $form = [System.Windows.Forms.Form]::new()
-    $form.Text = Get-String -Key "App_Title"
+    $form.Text = "$(Get-String -Key "App_Title") v$($script:AppVersion)"
     $form.Size = [System.Drawing.Size]::new(1180, 680)
     $form.MinimumSize = [System.Drawing.Size]::new(1000, 600)
     $form.StartPosition = "CenterScreen"
@@ -498,7 +499,7 @@ function Update-AllUI-Texts {
     if ($null -eq $script:MainForm) { return }
     
     # Update main form title
-    $script:MainForm.Text = Get-String -Key "App_Title"
+    $script:MainForm.Text = "$(Get-String -Key "App_Title") v$($script:AppVersion)"
     
     # Update all controls recursively
     Update-ControlsText -Control $script:MainForm
@@ -673,6 +674,9 @@ function Connect-ToServer {
             $null = $testResult.Output | ConvertFrom-Json -ErrorAction Stop
         }
 
+        # Fetch AWG versions
+        $script:App.ServerInfo = $script:App.SSHManager.GetServerInfo()
+
         Update-ConnectionStatus -Status (Get-String -Key "App_ConnectedTo" -Params $ServerProfile.Name) -Color ([System.Drawing.Color]::Green)
         Set-BusyState -Busy $false -Message ((Get-String -Key "App_ConnectedTo" -Params $ServerProfile.Name))
 
@@ -732,6 +736,7 @@ function Disconnect-FromServer {
         $script:btnConnect.Tag = "Server_Connect"
     }
     
+    $script:App.ServerInfo = @{ Tools = "N/A"; Kernel = "N/A" }
     Update-ConnectionStatus -Status (Get-String -Key "Server_Disconnected") -Color ([System.Drawing.Color]::Gray)
     Set-BusyState -Busy $false -Message (Get-String -Key "App_Ready")
     
@@ -867,7 +872,10 @@ function Refresh-ClientsList {
             }
         }
 
-        Set-BusyState -Busy $false -Message "Loaded clients: $(@($clients).Count)"
+        $tools = $script:App.ServerInfo.Tools
+        $kern  = $script:App.ServerInfo.Kernel
+        $count = @($clients).Count
+        Set-BusyState -Busy $false -Message (Get-String -Key "App_ServerInfo" -Params $tools, $kern, $count)
     }
     catch {
         Set-BusyState -Busy $false -Message "Load error"

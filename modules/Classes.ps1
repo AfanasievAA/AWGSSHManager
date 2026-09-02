@@ -197,6 +197,27 @@ class SSHManager {
         return $result.Output.Trim()
     }
 
+    [hashtable] GetServerInfo() {
+        $cmd = 'TOOLS=$(awg --version 2>/dev/null | head -n 1); ' +
+               'KERN=$(cat /sys/module/amneziawg/version 2>/dev/null); ' +
+               'echo "$TOOLS|$KERN"'
+        $result = $this.InvokeRemote($cmd)
+        
+        $tools = "N/A"
+        $kern  = "N/A"
+        
+        if ($result.Success -and -not [string]::IsNullOrWhiteSpace($result.Output)) {
+            $parts = $result.Output.Trim() -split '\|'
+            if ($parts.Length -ge 1 -and -not [string]::IsNullOrWhiteSpace($parts[0])) {
+                $tools = $parts[0].Trim()
+            }
+            if ($parts.Length -ge 2 -and -not [string]::IsNullOrWhiteSpace($parts[1])) {
+                $kern = $parts[1].Trim()
+            }
+        }
+        return @{ Tools = $tools; Kernel = $kern }
+    }
+
     [bool] TestConnection() {
         $result = $this.InvokeCommand("list --json")
         return $result.Success

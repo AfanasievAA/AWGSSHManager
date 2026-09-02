@@ -5,12 +5,12 @@
 .DESCRIPTION
   Entry point for the AmneziaWG Admin GUI application. Manages you Quick Amnezia WireGuard installation through GUI Interface in Windows for easy deploy for remote access users
 .NOTES
-  Version:        0.02
+  Version:        0.03
   Author:         Andrew Afanasiev
   Date:           02 Sep 2026
   Contacts:       AfanasievAA@yandex.ru
 
-Requires powershell 7.5+ and Putty be installed locally to run.
+Requires powershell 7.5+ be installed locally to run.
 Install AWG Server Quick stand-alone prior using script from
     wget -O install_amneziawg_en.sh https://raw.githubusercontent.com/bivlked/amneziawg-installer/main/install_amneziawg_en.sh
     chmod +x install_amneziawg_en.sh
@@ -23,6 +23,7 @@ Then enjoy this GUI for your installation to create access to your LAN for corpo
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$script:AppVersion = "0.03"
 
 # === Environment check ===
 if ($PSVersionTable.PSVersion.Major -lt 7 -or 

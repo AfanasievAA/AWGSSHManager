@@ -1,6 +1,7 @@
 ﻿{
     "App_Title": "AmneziaWG Admin — Управление сервером",
     "App_Ready": "Готово",
+    "App_ServerInfo": "AWG Tools: $1 | Ядро: $2 | Клиентов: $3",
     "App_Connecting": "Подключение...",
     "App_Connected": "Подключено",
     "App_Error": "Ошибка",

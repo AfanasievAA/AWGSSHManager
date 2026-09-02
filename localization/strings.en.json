@@ -1,6 +1,7 @@
 {
     "App_Title": "AmneziaWG Admin — Server Management",
     "App_Ready": "Ready",
+    "App_ServerInfo": "AWG Tools: $1 | Kernel: $2 | Clients: $3",
     "App_Connecting": "Connecting...",
     "App_Connected": "Connected",
     "App_Error": "Error",
