@@ -1,7 +1,7 @@
 #requires -Version 7.5
 # =============================================================================
 #  ProfileForm.ps1 — Dialog for creating/editing server profile
-#  Version: 0.1
+#  Version: 0.3
 #  Description: Dialog for creating and editing SSH server profiles.
 #               Supports key-based and password authentication.
 #               Passwords are stored encrypted using DPAPI.
@@ -116,7 +116,7 @@ function Show-ProfileForm {
     $btnBrowseKey.Add_Click({
         $openDialog = [System.Windows.Forms.OpenFileDialog]::new()
         $openDialog.Filter = "Private keys|*|All files (*.*)|*.*"
-        $openDialog.Title = "Select private key"
+        $openDialog.Title = Get-String -Key "Profile_SelectKeyTitle"
         $openDialog.InitialDirectory = "$env:USERPROFILE\.ssh"
         
         if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
@@ -130,12 +130,6 @@ function Show-ProfileForm {
     $rbPassword.Location = [System.Drawing.Point]::new(15, 115)
     $rbPassword.AutoSize = $true
     $grpAuth.Controls.Add($rbPassword)
-    
-    $lblPassword = [System.Windows.Forms.Label]::new()
-    $lblPassword.Text = Get-String -Key "Profile_PasswordField"
-    $lblPassword.Location = [System.Drawing.Point]::new(35, 140)
-    $lblPassword.AutoSize = $true
-   # $grpAuth.Controls.Add($lblPassword)
     
     $txtPassword = [System.Windows.Forms.TextBox]::new()
     $txtPassword.UseSystemPasswordChar = $true
@@ -202,7 +196,7 @@ function Show-ProfileForm {
             $errors += Get-String -Key "Profile_Validate_KeyPath"
         }
         
-        if ($rbKey.Checked -and -not (Test-Path $txtKeyPath.Text)) {
+        if ($rbKey.Checked -and -not (Test-Path -LiteralPath $txtKeyPath.Text -ErrorAction SilentlyContinue)) {
             $errors += (Get-String -Key "Profile_Validate_KeyNotFound" -Params $txtKeyPath.Text)
         }
         
@@ -219,6 +213,7 @@ function Show-ProfileForm {
             return
         }
         
+        $originalName = if ($ExistingProfile) { [string]$ExistingProfile.Name } else { $null }
         $profile = if ($ExistingProfile) { $ExistingProfile } else { [SSHProfile]::new() }
         
         $profile.Name = $txtProfileName.Text.Trim()
@@ -243,9 +238,10 @@ function Show-ProfileForm {
         
         if ($testConnection -eq [System.Windows.Forms.DialogResult]::Yes) {
             $btnSave.Enabled = $false
-            $btnSave.Text = "Testing..."
+            $btnSave.Text = Get-String -Key "Profile_Testing"
             [System.Windows.Forms.Application]::DoEvents()
             
+            $sshManager = $null
             try {
                 $sshManager = [SSHManager]::new($profile)
                 $result = $sshManager.InvokeCommand("list --json")
@@ -281,13 +277,14 @@ function Show-ProfileForm {
                 }
             }
             finally {
+                if ($sshManager) { try { $sshManager.Disconnect() } catch { } }
                 $btnSave.Enabled = $true
                 $btnSave.Text = if ($Mode -eq "Add") { Get-String -Key "Profile_Create" } else { Get-String -Key "Profile_Save" }
             }
         }
         
         try {
-            $ProfileManager.SaveProfile($profile)
+            $ProfileManager.SaveProfile($profile, $originalName)
             
             $script:App.Profiles = $ProfileManager.LoadAllProfiles()
             

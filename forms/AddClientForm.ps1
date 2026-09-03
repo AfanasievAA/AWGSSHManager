@@ -1,13 +1,16 @@
 ﻿#requires -Version 7.5
 # =============================================================================
 #  AddClientForm.ps1 — Dialog for adding a new client
-#  Version: 0.1
+#  Version: 0.3
 #  Description: Dialog for creating new AmneziaWG clients with options
 #               for PSK and expiration time.
 # =============================================================================
 
 function Show-AddClientForm {
     param([System.Windows.Forms.Form]$ParentForm)
+
+    # Caller may omit -ParentForm; null owner breaks ShowDialog overload binding
+    if (-not $ParentForm) { $ParentForm = $script:MainForm }
     
     if (-not $script:App.ClientManager) {
         [System.Windows.Forms.MessageBox]::Show(
@@ -74,7 +77,7 @@ function Show-AddClientForm {
     
     $lblDuration = [System.Windows.Forms.Label]::new()
     $lblDuration.Text = Get-String -Key "AddClient_Duration"
-    $lblDuration.Location = [System.Drawing.Point]::new(40, 85)
+    $lblDuration.Location = [System.Drawing.Point]::new(25, 85)
     $lblDuration.AutoSize = $true
     $grpOptions.Controls.Add($lblDuration)
     
@@ -120,6 +123,7 @@ function Show-AddClientForm {
     $btnCreate.Location = [System.Drawing.Point]::new(195, 295)
     $btnCreate.Size = [System.Drawing.Size]::new(100, 32)
     $btnCreate.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $btnCreate.Enabled = $false
     $dialog.Controls.Add($btnCreate)
     
     $btnCancel = [System.Windows.Forms.Button]::new()
@@ -185,8 +189,8 @@ function Show-AddClientForm {
             $cm = $script:App.ClientManager
             $usePSK = [bool]$chkPSK.Checked
             $result = $cm.AddClient($clientName, $expires, $usePSK)
-            
-            if ($result.ok) {
+
+            if ($result -and (Get-AWGConfigProperty -Object $result -Name 'ok')) {
                 # Support both array 'results' and flat object responses
                 $clientResult = $null
                 if ($result.PSObject.Properties['results']) {
@@ -221,13 +225,18 @@ function Show-AddClientForm {
                 Refresh-ClientsList
             }
             else {
-                $errorMessage = "Server returned error: $($result.error)"
-                
-                $failedResult = $result.results | Where-Object { $_.name -eq $clientName }
-                if ($failedResult -and $failedResult.status -eq "exists") {
-                    $errorMessage += "`n`n" + (Get-String -Key "Error_ClientExists" -Params $clientName)
+                # Failure envelope has no 'results' — read properties safely (StrictMode)
+                $errText = Get-AWGConfigProperty -Object $result -Name 'error'
+                $errorMessage = Get-String -Key "Error_ServerReturned" -Params $errText
+
+                $resultsProp = Get-AWGConfigProperty -Object $result -Name 'results'
+                if ($resultsProp) {
+                    $failedResult = @($resultsProp) | Where-Object { $_.name -eq $clientName } | Select-Object -First 1
+                    if ($failedResult -and (Get-AWGConfigProperty -Object $failedResult -Name 'status') -eq 'exists') {
+                        $errorMessage += "`n`n" + (Get-String -Key "Error_ClientExists" -Params $clientName)
+                    }
                 }
-                
+
                 throw $errorMessage
             }
         }

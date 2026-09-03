@@ -1,7 +1,7 @@
 #requires -Version 7.5
 # =============================================================================
 #  ViewConfigForm.ps1 — View client .conf and QR code
-#  Version: 0.1
+#  Version: 0.3
 #  Description: Displays client configuration text and QR codes.
 #               Supports both WireGuard-compatible and Amnezia VPN QR types.
 # =============================================================================
@@ -148,7 +148,7 @@ function Show-ViewConfigForm {
         $sf = [System.Drawing.StringFormat]::new()
         $sf.Alignment = [System.Drawing.StringAlignment]::Center
         $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
-        $g.DrawString("Loading...", $font, [System.Drawing.Brushes]::Gray, [System.Drawing.RectangleF]::new(0, 0, $loadingBmp.Width, $loadingBmp.Height), $sf)
+        $g.DrawString((Get-String -Key "ViewConfig_Loading"), $font, [System.Drawing.Brushes]::Gray, [System.Drawing.RectangleF]::new(0, 0, $loadingBmp.Width, $loadingBmp.Height), $sf)
         $picQr.Image = $loadingBmp
         $g.Dispose()
         $font.Dispose()
@@ -160,9 +160,14 @@ function Show-ViewConfigForm {
         $cName  = $clientName
         $dst    = $tempQr
 
+        # Remove stale temp file so a failed download can't leave a QR of another kind
+        Remove-Item -LiteralPath $dst -Force -ErrorAction SilentlyContinue
+
         $ok = $sshMgr.DownloadQR($cName, $dst, $kind)
 
         if ($ok -and (Test-Path -LiteralPath $tempQr)) {
+            # Release the placeholder bitmap before assigning the real image
+            if ($picQr.Image) { $picQr.Image.Dispose() }
             $ms = [System.IO.MemoryStream]::new([System.IO.File]::ReadAllBytes($tempQr))
             $picQr.Image = [System.Drawing.Image]::FromStream($ms)
             $picQr.Tag   = $ms

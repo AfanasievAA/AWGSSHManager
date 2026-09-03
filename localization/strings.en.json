@@ -4,17 +4,19 @@
     "App_ServerInfo": "AWG Tools: $1 | Kernel: $2 | Clients: $3",
     "App_Connecting": "Connecting...",
     "App_Connected": "Connected",
+    "App_ConnectedTo": "Connected to $1",
     "App_Error": "Error",
-    
+
     "Server_Label": "Server:",
     "Server_Connect": "Connect",
+    "Server_Disconnect": "Disconnect",
     "Server_NewProfile": "New Profile...",
     "Server_EditProfile": "Edit Profile...",
     "Server_DeleteProfile": "Delete Profile...",
+    "Server_Disconnected": "● Disconnected",
     "Profile_DeleteConfirm": "Are you sure you want to delete profile '$1'?",
     "Error_ProfileDelete": "Error deleting profile: $1",
-    "Server_Disconnected": "● Disconnected",
-    
+
     "Actions_Title": "Actions",
     "Actions_Refresh": "Refresh List",
     "Actions_AddClient": "Add Client...",
@@ -24,13 +26,14 @@
     "Actions_DownloadConfig": "Download .conf...",
     "Actions_Regenerate": "Regenerate...",
     "Actions_Stats": "Statistics",
-    "Actions_Backup": "Backup AWG",
+    "Actions_Backup": "Backup AWG to file...",
+    "Actions_RestoreBackup": "Restore AWG from File...",
     "Actions_Restart": "Restart AWG",
-    
+
     "Language": "Language",
     "Language_Russian": "Русский",
     "Language_English": "English",
-    
+
     "Column_Name": "Client Name",
     "Column_IP": "IP Address",
     "Column_IPv6": "IPv6",
@@ -38,7 +41,7 @@
     "Column_Expires": "Expires",
     "Column_Rx": "Received",
     "Column_Tx": "Sent",
-    
+
     "Status_Active": "Active",
     "Status_Recent": "Recent",
     "Status_Inactive": "Inactive",
@@ -47,7 +50,7 @@
     "Status_NoData": "No data",
     "Status_Expired": "Expired",
     "Status_Permanent": "Permanent",
-    
+
     "AddClient_Title": "Add Client",
     "AddClient_Name": "Client Name:",
     "AddClient_NameHint": "Allowed: a-z, A-Z, 0-9, hyphen, underscore (max 32 chars)",
@@ -70,11 +73,11 @@
     "AddClient_QRCode": "QR code:",
     "AddClient_VpnUri": "vpn:// URI:",
     "AddClient_ExpiresAt": "Expires:",
-    "AddClient_Exists": "Client '$1' already exists.",
     "AddClient_Error": "Error creating client:",
-    
+
     "EditClient_Title": "Editing client — $1",
     "EditClient_Loading": "Loading current configuration...",
+    "EditClient_LoadFailedGuard": "Current configuration could not be loaded. Saving is disabled to prevent overwriting server values with defaults.",
     "EditClient_DNS": "DNS Servers",
     "EditClient_DNSHint": "Format: IP1, IP2 (e.g.: 8.8.8.8, 1.0.0.1)",
     "EditClient_Endpoint": "Endpoint (server address:port)",
@@ -95,7 +98,7 @@
     "EditClient_RegenHint": "Don't forget to regenerate and send the .conf file to the client!",
     "EditClient_Result": "Result",
     "EditClient_ErrorSaving": "Error saving:",
-    
+
     "ViewConfig_Title": "Configuration — $1",
     "ViewConfig_Client": "Client: $1",
     "ViewConfig_QrKind": "QR code type:",
@@ -112,8 +115,7 @@
     "ViewConfig_QRNotFound": "QR code not found on server.",
     "ViewConfig_QRNotFoundDetail": "Possible reasons:\n• selected QR type doesn't exist for this client (e.g., .vpnuri.png is not generated on all server versions);\n• files were not generated — run 'Regenerate'.",
     "ViewConfig_FileSaved": "File saved:",
-    "ViewConfig_SaveError": "Error saving:",
-    
+
     "Profile_Title_Add": "New Server Profile",
     "Profile_Title_Edit": "Edit Profile",
     "Profile_Connection": "Connection Settings",
@@ -125,7 +127,6 @@
     "Profile_Key": "SSH Key (recommended)",
     "Profile_KeyPath": "Private key path:",
     "Profile_Password": "Password",
-    "Profile_PasswordField": "Password:",
     "Profile_PasswordWarning": "⚠ Password is stored encrypted (DPAPI), but SSH key is more secure",
     "Profile_Create": "Create",
     "Profile_Save": "Save",
@@ -141,8 +142,7 @@
     "Profile_Test_Failed": "Connection failed: $1\n\nSave profile anyway?",
     "Profile_Test_Error": "Connection test error: $1\n\nSave profile anyway?",
     "Profile_Saved": "Profile '$1' saved.",
-    "Profile_SaveError": "Error saving profile:",
-    
+
     "Stats_Title": "Traffic Statistics",
     "Stats_Header": "Traffic statistics by client",
     "Stats_Column_Client": "Client",
@@ -152,18 +152,21 @@
     "Stats_Column_Total": "Total",
     "Stats_Column_Handshake": "Last handshake",
     "Stats_Column_Status": "Status",
+    "Stats_Handshake_Never": "never",
+    "Stats_Handshake_Now": "just now",
+    "Stats_Handshake_Min": "$1 min ago",
+    "Stats_Handshake_Hour": "$1 h ago",
+    "Stats_Handshake_Day": "$1 d ago",
     "Stats_Refresh": "Refresh",
     "Stats_Close": "Close",
     "Stats_Total": "Total: $1 received, $2 sent",
     "Stats_Loading": "Loading statistics...",
-    "Stats_Error": "Error loading statistics:",
-    
+
     "Msg_Warning": "Warning",
     "Msg_Error": "Error",
     "Msg_Info": "Information",
     "Msg_Confirm": "Confirmation",
     "Msg_CriticalError": "Critical Error",
-    "Msg_OpenSSHMissing": "OpenSSH Client not found in the system.\n\nInstall it via:\nSettings → Apps → Optional features → OpenSSH Client\n\nOr via PowerShell (as Administrator):\nAdd-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0",
     "Msg_PressEnter": "Press Enter to exit",
     "Msg_SelectClient": "Select a client in the table",
     "Msg_ConnectFirst": "Connect to server first",
@@ -172,50 +175,46 @@
     "Msg_SelectProfileEdit": "Select a profile to edit.",
     "Msg_Busy": "Wait for the current operation to complete.",
     "Msg_OperationInProgress": "Operation in progress",
-    
+
     "Delete_Confirm": "Are you sure you want to delete client '$1'?\n\nThis action is irreversible.",
     "Delete_Deleting": "Deleting client '$1'...",
     "Delete_Deleted": "Client '$1' deleted",
     "Delete_Error": "Error deleting client:",
-    
+
     "Export_SaveConfig": "Save client configuration",
     "Export_Downloading": "Downloading configuration...",
     "Export_Downloaded": "File saved: $1",
     "Export_Error": "Error downloading configuration:",
-    
+
     "Regen_Confirm": "Regenerate configuration for '$1'?\n\nYes — reset AllowedIPs to global mode\nNo — keep custom settings",
     "Regen_Regenerating": "Regenerating configuration for '$1'...",
     "Regen_Regenerated": "Configuration for '$1' regenerated.\n\nDon't forget to send the new .conf file to the client!",
     "Regen_Error": "Regeneration error:",
-    
+
     "Backup_Confirm": "Create full AmneziaWG server backup?\n\nArchive will be created on server: server config, keys,\nall client configs, expiration data, cron.\nThen archive will be downloaded to this computer.\n\n⚠ Archive contains PRIVATE keys — store in a secure location!",
     "Backup_Creating": "Creating archive on server (may take a while)...",
     "Backup_Finding": "Searching for created archive...",
     "Backup_Downloading": "Downloading archive (may take a while)...",
     "Backup_Saved": "Backup created successfully!\n\nLocal file: $1 ($2)\nServer archive: $3\n\nArchive copy is also kept on server (/root/awg/backups/).\nRestore: transfer archive to server and run restore command.\n\n⚠ Archive contains server private keys — store in a secure location!",
     "Backup_Error": "Failed to create backup:",
-    "Actions_RestoreBackup": "Restore AWG from File...",
+
     "Restore_Confirm": "Restore server from a local backup file?\n\nThis will OVERWRITE current server configuration, keys, and clients.\n\nThe file will be uploaded to the server and restored.",
     "Restore_Uploading": "Uploading archive to server...",
     "Restore_Restoring": "Restoring server from archive...",
     "Restore_Restored": "Server successfully restored from backup.\n\nAWG service has been restarted.",
     "Restore_Error": "Failed to restore backup:",
-    
+
     "Restart_Confirm": "Restart AmneziaWG service on server?\n\nAll active connections will be terminated.",
     "Restart_Restarting": "Restarting AmneziaWG service...",
     "Restart_Restarted": "AmneziaWG service restarted successfully.",
     "Restart_Error": "Error restarting service:",
-    
+
     "Error_ProfileNoKeyOrPassword": "Profile has neither private key nor password set.",
     "Error_PrivateKeyNotFound": "Private key file not found: $1",
-    "Error_PlinkNotFound": "Profile uses PASSWORD authentication, but plink.exe not found.\n\nBuilt-in Windows ssh.exe cannot pass password in non-interactive mode — it silently waits for input and times out.\n\nSolutions:\n  1 (recommended): set up SSH key;\n  2: install PuTTY (https://www.putty.org) — application will automatically find plink.exe/pscp.exe. PuTTY GUI is not required.",
-    "Error_ConnectFailed": "SSH connection failed (code $1): $2",
     "Error_InvalidParam": "Invalid parameter: $1. Allowed: $2",
     "Error_ConfigReadFailed": "Failed to read configuration for client '$1': $2",
     "Error_BackupNotFound": "Backup archives not found in /root/awg/backups/ on server",
-    "Error_PscpNotFound": "pscp.exe not found next to plink.exe — download with password authentication is unavailable.",
     "Error_Timeout": "Command timeout ($1 s). Stderr: $2",
-    "Error_HostKey": "Failed to accept host key: $1",
     "Error_ConnectToServer": "Failed to connect to server: $1",
     "Error_ServerReturned": "Server returned error: $1",
     "Error_ServerUnknown": "unknown error",
@@ -249,7 +248,32 @@
     "Error_InvalidName": "Name contains invalid characters",
     "Error_NameRequired": "Enter client name",
     "Error_ClientNameInvalid": "Name contains invalid characters",
-    "App_ConnectedTo": "Connected to $1",
-    "Server_Disconnect": "Disconnect",
-    "Error_AWGNotFound": "AWG installation not found. Install it manually by running:\r\n\r\nwget -O install_amneziawg_en.sh https://raw.githubusercontent.com/bivlked/amneziawg-installer/main/install_amneziawg_en.sh\r\n\r\nchmod +x install_amneziawg_en.sh\r\n\r\nsudo bash ./install_amneziawg_en.sh"
+    "Error_AWGNotFound": "AWG installation not found. Install it manually by running:\r\n\r\nwget -O install_amneziawg_en.sh https://raw.githubusercontent.com/bivlked/amneziawg-installer/main/install_amneziawg_en.sh\r\n\r\nchmod +x install_amneziawg_en.sh\r\n\r\nsudo bash ./install_amneziawg_en.sh",
+    "App_Refreshing": "Refreshing client list...",
+    "App_ListError": "Client list error",
+    "Error_ClientList": "Error getting client list: $1",
+    "Error_InvalidValue": "Invalid value for $1: $2",
+    "Error_BackupUpload": "Failed to upload archive to server",
+    "Regen_Done": "Configuration regenerated",
+    "Backup_Done": "Backup saved",
+    "Restore_Done": "Restored",
+    "Restart_Done": "Service restarted",
+    "Profile_Testing": "Testing...",
+    "Profile_SelectKeyTitle": "Select private key",
+    "Backup_SaveTitle": "Save backup location",
+    "Restore_SelectTitle": "Select backup file to restore",
+    "Error_ConnectFailed": "Error. Connection failed.",
+    "Expiry_Unreadable": "unreadable",
+    "Actions_UpdateScripts": "Update Scripts...",
+    "UpdateScripts_Confirm": "Download and replace server management scripts (manage_amneziawg.sh + awg_common.sh) from the latest release?\n\nThe pair is always replaced together; originals stay intact if any step fails. AWG service is not restarted — the next command already runs on the new scripts.\n\nYes — Russian version\nNo — English version\nCancel — abort",
+    "UpdateScripts_Updating": "Downloading scripts from GitHub (may take a while)...",
+    "UpdateScripts_Done": "Server scripts updated successfully.\n\nClient list was reloaded as a smoke test.",
+    "UpdateScripts_Error": "Error updating scripts: $1",
+    "ColumnTip_Name": "Client name (from the #_Name marker in the server config)",
+    "ColumnTip_IP": "IPv4 address inside the VPN tunnel",
+    "ColumnTip_IPv6": "IPv6 address inside the tunnel (empty when disabled on the server)",
+    "ColumnTip_Status": "Server-reported activity based on last handshake; 'Expired' is computed locally from the expiry date",
+    "ColumnTip_Expires": "Expiry date set at client creation (--expires).\n'not readable' means an expiry marker exists on the server but cannot be parsed",
+    "ColumnTip_Rx": "Received BY THE SERVER from this client (client upload)",
+    "ColumnTip_Tx": "Sent BY THE SERVER to this client (client download)"    
 }

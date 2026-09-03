@@ -1,7 +1,7 @@
 ﻿#requires -Version 7.5
 # =============================================================================
 #  MainForm.ps1 — Main application window
-#  Version: 0.2
+#  Version: 0.3
 #  Description: Main application window with server profile management,
 #               client list view, and all action buttons.
 # =============================================================================
@@ -163,20 +163,22 @@ function New-MainForm {
 
     # --- Columns ---
     $columnDefs = @(
-        @{ Name = 'Name';    HeaderTextKey = 'Column_Name';    MinimumWidth = 120; AutoSizeMode = 'Fill'     }
-        @{ Name = 'IP';      HeaderTextKey = 'Column_IP';      MinimumWidth = 90;  AutoSizeMode = 'AllCells' }
-        @{ Name = 'IPv6';    HeaderTextKey = 'Column_IPv6';    MinimumWidth = 110; AutoSizeMode = 'AllCells' }
-        @{ Name = 'Status';  HeaderTextKey = 'Column_Status';  MinimumWidth = 95;  AutoSizeMode = 'AllCells' }
-        @{ Name = 'Expires'; HeaderTextKey = 'Column_Expires'; MinimumWidth = 110; AutoSizeMode = 'AllCells' }
-        @{ Name = 'Rx';      HeaderTextKey = 'Column_Rx';      MinimumWidth = 85;  AutoSizeMode = 'AllCells' }
-        @{ Name = 'Tx';      HeaderTextKey = 'Column_Tx';      MinimumWidth = 85;  AutoSizeMode = 'AllCells' }
+        @{ Name = 'Name';    HeaderTextKey = 'Column_Name';    ToolTipKey = 'ColumnTip_Name';    MinimumWidth = 120; AutoSizeMode = 'Fill'     }
+        @{ Name = 'IP';      HeaderTextKey = 'Column_IP';      ToolTipKey = 'ColumnTip_IP';      MinimumWidth = 90;  AutoSizeMode = 'AllCells' }
+        @{ Name = 'IPv6';    HeaderTextKey = 'Column_IPv6';    ToolTipKey = 'ColumnTip_IPv6';    MinimumWidth = 110; AutoSizeMode = 'AllCells' }
+        @{ Name = 'Status';  HeaderTextKey = 'Column_Status';  ToolTipKey = 'ColumnTip_Status';  MinimumWidth = 95;  AutoSizeMode = 'AllCells' }
+        @{ Name = 'Expires'; HeaderTextKey = 'Column_Expires'; ToolTipKey = 'ColumnTip_Expires'; MinimumWidth = 110; AutoSizeMode = 'AllCells' }
+        @{ Name = 'Rx';      HeaderTextKey = 'Column_Rx';      ToolTipKey = 'ColumnTip_Rx';      MinimumWidth = 85;  AutoSizeMode = 'AllCells' }
+        @{ Name = 'Tx';      HeaderTextKey = 'Column_Tx';      ToolTipKey = 'ColumnTip_Tx';      MinimumWidth = 85;  AutoSizeMode = 'AllCells' }
     )
 
     foreach ($def in $columnDefs) {
         $column = [System.Windows.Forms.DataGridViewTextBoxColumn]::new()
         $column.Name = $def.Name
         $column.HeaderText = Get-String -Key $def.HeaderTextKey
-        $column.Tag = $def.HeaderTextKey  # Store localization key
+        # Composite tag: header caption AND hover tooltip retranslate on language switch
+        $column.Tag = @{ TextKey = $def.HeaderTextKey; TipKey = $def.ToolTipKey }
+        $column.HeaderCell.ToolTipText = Get-String -Key $def.ToolTipKey
         $column.AutoSizeMode = $def.AutoSizeMode
         $column.MinimumWidth = $def.MinimumWidth
         $column.ReadOnly = $true
@@ -202,8 +204,13 @@ function New-MainForm {
             }
 
             $expiresCol = $sender.Columns['Expires']
-            if ($null -ne $expiresCol -and $e.ColumnIndex -eq $expiresCol.Index -and $tag['IsExpired']) {
-                $e.CellStyle.ForeColor = [System.Drawing.Color]::Red
+            if ($null -ne $expiresCol -and $e.ColumnIndex -eq $expiresCol.Index) {
+                if ($tag['IsExpiryError']) {
+                    $e.CellStyle.ForeColor = [System.Drawing.Color]::DarkOrange
+                }
+                elseif ($tag['IsExpired']) {
+                    $e.CellStyle.ForeColor = [System.Drawing.Color]::Red
+                }
             }
         }
         catch {
@@ -225,7 +232,7 @@ function New-MainForm {
 
     $menuAdd = [System.Windows.Forms.ToolStripMenuItem]::new((Get-String -Key "Actions_AddClient"))
     $menuAdd.Tag = "Actions_AddClient"
-    $menuAdd.Add_Click({ Show-AddClientForm })
+    $menuAdd.Add_Click({ Show-AddClientForm -ParentForm $script:MainForm })
     [void]$contextMenu.Items.Add($menuAdd)
 
     $menuEdit = [System.Windows.Forms.ToolStripMenuItem]::new((Get-String -Key "Actions_EditClient"))
@@ -283,7 +290,7 @@ function New-MainForm {
     # --- Action buttons definition ---
     $actionDefs = @(
         @{ TextKey = "Actions_Refresh";       Handler = { Refresh-ClientsList } }
-        @{ TextKey = "Actions_AddClient";     Handler = { Show-AddClientForm } }
+        @{ TextKey = "Actions_AddClient";     Handler = { Show-AddClientForm -ParentForm $script:MainForm } }
         @{ TextKey = "Actions_EditClient";    Handler = { Show-EditClientForm } }
         @{ TextKey = "Actions_DeleteClient";  Handler = { Remove-SelectedClient } }
         @{ IsSeparator = $true }
@@ -294,6 +301,7 @@ function New-MainForm {
         @{ TextKey = "Actions_Stats";         Handler = { Show-StatsDialog } }
         @{ TextKey = "Actions_Backup";        Handler = { Export-ServerConfig } }
         @{ TextKey = "Actions_RestoreBackup"; Handler = { Import-ServerConfig } }
+        @{ TextKey = "Actions_UpdateScripts"; Handler = { Update-ServerScripts } }
         @{ TextKey = "Actions_Restart";       Handler = { Restart-AWGService } }
     )
 
@@ -326,10 +334,10 @@ function New-MainForm {
     # =========================================================================
     # Add controls to form
     # =========================================================================
-    [void]$form.Controls.Add($toolStrip)
-    [void]$form.Controls.Add($statusStrip)
-    [void]$form.Controls.Add($rightPanel)
     [void]$form.Controls.Add($leftPanel)
+    [void]$form.Controls.Add($rightPanel)
+    [void]$form.Controls.Add($statusStrip)
+    [void]$form.Controls.Add($toolStrip)
 
     # =========================================================================
     # Event handlers
@@ -355,9 +363,15 @@ function New-MainForm {
     # --- Connect / Disconnect ---
     $script:btnConnect.Add_Click({
         # If connected -> Disconnect
-        if ($null -ne $script:App.SSHManager -and $script:App.SSHManager.IsConnected()) {
-            Disconnect-FromServer
-            return
+        if ($null -ne $script:App.SSHManager) {
+            if ($script:App.SSHManager.IsConnected()) {
+                Disconnect-FromServer
+                return
+            }
+            # Stale manager (connection dropped) — release it before reconnecting
+            try { $script:App.SSHManager.Disconnect() } catch { }
+            $script:App.SSHManager = $null
+            $script:App.ClientManager = $null
         }
 
         # If not connected -> Connect
@@ -528,10 +542,20 @@ function Update-ControlsText {
         Update-ControlsText -Control $child
     }
 
-    # Update DataGridView column headers
+    # Update DataGridView column headers (Tag: hashtable {TextKey,TipKey} or legacy string)
     if ($Control -is [System.Windows.Forms.DataGridView]) {
         foreach ($col in $Control.Columns) {
-            if ($col.Tag -and $col.Tag -is [string]) {
+            if ($col.Tag -is [hashtable]) {
+                $textKey = [string]$col.Tag['TextKey']
+                $tipKey  = [string]$col.Tag['TipKey']
+                if ($textKey -and $script:Strings.ContainsKey($textKey)) {
+                    $col.HeaderText = Get-String -Key $textKey
+                }
+                if ($tipKey -and $script:Strings.ContainsKey($tipKey)) {
+                    $col.HeaderCell.ToolTipText = Get-String -Key $tipKey
+                }
+            }
+            elseif ($col.Tag -and $col.Tag -is [string]) {
                 $key = [string]$col.Tag
                 if ($script:Strings.ContainsKey($key)) {
                     $col.HeaderText = Get-String -Key $key
@@ -611,12 +635,16 @@ function Update-ConnectionStatus {
     if ($null -ne $script:lblConnStatus) {
         $script:lblConnStatus.Text = "  ● $Status"
         $script:lblConnStatus.ForeColor = $Color
+        # Prevent Tag-based retranslation from overwriting dynamic status with a stale key
+        $script:lblConnStatus.Tag = $null
         $script:lblConnStatus.Invalidate()
     }
 }
 
 function Set-BusyState {
     param([bool]$Busy, [string]$Message = "")
+
+    $script:IsBusy = $Busy
 
     if ($null -ne $script:statusProgressBar) {
         $script:statusProgressBar.Visible = $Busy
@@ -629,20 +657,6 @@ function Set-BusyState {
     }
     if ($Busy) {
         [void][System.Windows.Forms.Application]::DoEvents()
-    }
-}
-function Set-ControlsEnabled {
-    param($Controls, [bool]$Enabled)
-    foreach ($ctrl in $Controls) {
-        if ($ctrl -is [System.Windows.Forms.ToolStrip]) {
-            foreach ($item in $ctrl.Items) { $item.Enabled = $Enabled }
-        }
-        else {
-            $ctrl.Enabled = $Enabled
-        }
-        if ($ctrl.Controls -and $ctrl.Controls.Count -gt 0) {
-            Set-ControlsEnabled -Controls $ctrl.Controls -Enabled $Enabled
-        }
     }
 }
 
@@ -660,6 +674,7 @@ function Connect-ToServer {
         $testResult = $ssh.InvokeCommand("list --json")
 
         if (-not $testResult.Success) {
+            try { $script:App.SSHManager.Disconnect() } catch { }
             $script:App.SSHManager    = $null
             $script:App.ClientManager = $null
             
@@ -807,7 +822,7 @@ function Refresh-ClientsList {
     }
     if ($null -eq $script:dgvClients) { return }
 
-    Set-BusyState -Busy $true -Message ((Get-String -Key "App_Connecting") + " clients...")
+    Set-BusyState -Busy $true -Message (Get-String -Key "App_Refreshing")
 
     try {
         $cm = $script:App.ClientManager
@@ -834,7 +849,11 @@ function Refresh-ClientsList {
             $ip         = Get-AWGConfigProperty -Object $client -Name 'ip'
             $ipv6       = Get-AWGConfigProperty -Object $client -Name 'client_ipv6'
             $statusCode = Get-AWGConfigProperty -Object $client -Name 'status_code'
-            $expiresAt  = Get-AWGConfigProperty -Object $client -Name 'expires_at'
+            # 'expires_at'/'expires_at_error' are additive contract fields (absent
+            # on pre-5.29.1 servers). Missing property = "no data"; non-null
+            # expires_at_error = expiry marker exists but is unreadable on server.
+            $expiresProp    = $client.PSObject.Properties['expires_at']
+            $expiresErrProp = $client.PSObject.Properties['expires_at_error']
 
             $st = $statsByName[$name]
             $rxText = "—"; $txText = "—"
@@ -845,13 +864,28 @@ function Refresh-ClientsList {
                 if ($tx) { $txText = Format-Bytes -Bytes ([long]$tx) }
             }
 
-            $expiryInfo    = Get-AWGExpiryStatus -ExpiresAt $expiresAt
-            # Override server status if expired locally
-            if ($expiryInfo.IsExpired) {
-                $statusCode = 'expired'
+            $expiresText = "—"
+            $expiresTip  = ""
+            $isExpired   = $false
+            $expiryError = $false
+            if ($null -ne $expiresErrProp -and $expiresErrProp.Value) {
+                # Expiry is set on server but unreadable — must NOT show as permanent
+                $expiryError = $true
+                $expiresText = Get-String -Key "Expiry_Unreadable"
+                # Server error text is human-readable (contract) — surface it in tooltip
+                $expiresTip = "{0} ({1})" -f $expiresText, $expiresErrProp.Value
+            }
+            elseif ($null -ne $expiresProp) {
+                $expiryInfo  = Get-AWGExpiryStatus -ExpiresAt $expiresProp.Value
+                $expiresText = [string]$expiryInfo['Text']
+                $isExpired   = [bool]$expiryInfo['IsExpired']
+                # Override server status if expired locally
+                if ($isExpired) { $statusCode = 'expired' }
+                if ($expiryInfo['ExpiryDate']) {
+                    $expiresTip = $expiryInfo['ExpiryDate'].ToString('dd.MM.yyyy HH:mm')
+                }
             }
             $statusDisplay = Get-AWGStatusDisplay -StatusCode ([string]$statusCode)
-            $expiresText   = [string]$expiryInfo['Text']
 
             $ipText   = if ($ip)   { [string]$ip }   else { "—" }
             $ipv6Text = if ($ipv6 -and [string]$ipv6 -ne 'null') { [string]$ipv6 } else { "—" }
@@ -866,10 +900,15 @@ function Refresh-ClientsList {
                 $txText
             )
 
-            $script:dgvClients.Rows[$idx].Tag = @{
-                StatusCode = [string]$statusCode
-                IsExpired  = [bool]$expiryInfo['IsExpired']
+            $row = $script:dgvClients.Rows[$idx]
+            $row.Tag = @{
+                StatusCode    = [string]$statusCode
+                IsExpired     = $isExpired
+                IsExpiryError = $expiryError
             }
+            # Exact expiry date/time as the Expires cell tooltip (grid cell shows
+            # the human-readable remainder)
+            if ($expiresTip) { $row.Cells['Expires'].ToolTipText = $expiresTip }
         }
 
         $tools = $script:App.ServerInfo.Tools
@@ -878,9 +917,9 @@ function Refresh-ClientsList {
         Set-BusyState -Busy $false -Message (Get-String -Key "App_ServerInfo" -Params $tools, $kern, $count)
     }
     catch {
-        Set-BusyState -Busy $false -Message "Load error"
+        Set-BusyState -Busy $false -Message (Get-String -Key "App_ListError")
         [System.Windows.Forms.MessageBox]::Show(
-            "Error getting client list:`n$($_.Exception.Message)",
+            (Get-String -Key "Error_ClientList" -Params $_.Exception.Message),
             (Get-String -Key "Msg_Error"),
             "OK",
             [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -924,7 +963,7 @@ function Remove-SelectedClient {
         }
     }
     catch {
-        Set-BusyState -Busy $false -Message "Delete error"
+        Set-BusyState -Busy $false -Message (Get-String -Key "Delete_Error")
         [System.Windows.Forms.MessageBox]::Show(
             (Get-String -Key "Error_ClientDelete" -Params $_.Exception.Message),
             (Get-String -Key "Msg_Error"),
@@ -980,7 +1019,7 @@ function Export-SelectedClientConfig {
         }
     }
     catch {
-        Set-BusyState -Busy $false -Message "Download error"
+        Set-BusyState -Busy $false -Message (Get-String -Key "Export_Error")
         [System.Windows.Forms.MessageBox]::Show(
             (Get-String -Key "Error_ConfigDownload" -Params $_.Exception.Message),
             (Get-String -Key "Msg_Error"),
@@ -1018,7 +1057,7 @@ function Regen-SelectedClient {
 
         $ok = Get-AWGConfigProperty -Object $result -Name 'ok'
         if ($ok) {
-            Set-BusyState -Busy $false -Message "Configuration regenerated"
+            Set-BusyState -Busy $false -Message (Get-String -Key "Regen_Done")
             [System.Windows.Forms.MessageBox]::Show(
                 (Get-String -Key "Regen_Regenerated" -Params $clientName),
                 (Get-String -Key "Msg_Info"),
@@ -1031,7 +1070,7 @@ function Regen-SelectedClient {
         }
     }
     catch {
-        Set-BusyState -Busy $false -Message "Regeneration error"
+        Set-BusyState -Busy $false -Message (Get-String -Key "Regen_Error")
         [System.Windows.Forms.MessageBox]::Show(
             (Get-String -Key "Error_ClientRegen" -Params $_.Exception.Message),
             (Get-String -Key "Msg_Error"),
@@ -1074,9 +1113,11 @@ function Export-ServerConfig {
     $saveDialog = [System.Windows.Forms.SaveFileDialog]::new()
     $saveDialog.Filter = "AmneziaWG Archive (*.tar.gz)|*.tar.gz|All files (*.*)|*.*"
     $saveDialog.FileName = "awg_backup_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').tar.gz"
-    $saveDialog.Title = "Save backup location"
+    $saveDialog.Title = Get-String -Key "Backup_SaveTitle"
 
     if ($saveDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
+
+    Set-BusyState -Busy $true -Message (Get-String -Key "Backup_Creating")
 
     try {
         $cm = $script:App.ClientManager
@@ -1095,8 +1136,12 @@ function Export-ServerConfig {
             }
         }
 
+        Set-BusyState -Busy $true -Message (Get-String -Key "Backup_Finding")
+
         $ssh = $script:App.SSHManager
         $archivePath = $ssh.GetLatestBackupPath()
+
+        Set-BusyState -Busy $true -Message (Get-String -Key "Backup_Downloading")
 
         $localPath = $saveDialog.FileName
         $success = $ssh.DownloadFile($archivePath, $localPath)
@@ -1111,7 +1156,7 @@ function Export-ServerConfig {
             $sizeText = Format-Bytes -Bytes $f.Length
         } catch { }
 
-        Set-BusyState -Busy $false -Message "Backup saved"
+        Set-BusyState -Busy $false -Message (Get-String -Key "Backup_Done")
 
         [System.Windows.Forms.MessageBox]::Show(
             (Get-String -Key "Backup_Saved" -Params $localPath, $sizeText, $archivePath),
@@ -1120,7 +1165,7 @@ function Export-ServerConfig {
             [System.Windows.Forms.MessageBoxIcon]::Information)
     }
     catch {
-        Set-BusyState -Busy $false -Message "Backup error"
+        Set-BusyState -Busy $false -Message (Get-String -Key "Backup_Error")
         [System.Windows.Forms.MessageBox]::Show(
             (Get-String -Key "Error_BackupCreate" -Params $_.Exception.Message),
             (Get-String -Key "Msg_Error"),
@@ -1149,7 +1194,7 @@ function Import-ServerConfig {
 
     $openDialog = [System.Windows.Forms.OpenFileDialog]::new()
     $openDialog.Filter = "AmneziaWG Archive (*.tar.gz)|*.tar.gz|All files (*.*)|*.*"
-    $openDialog.Title = "Select backup file to restore"
+    $openDialog.Title = Get-String -Key "Restore_SelectTitle"
     $openDialog.InitialDirectory = [System.Environment]::GetFolderPath("MyDocuments")
 
     if ($openDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
@@ -1161,10 +1206,12 @@ function Import-ServerConfig {
 
     try {
         $ssh = $script:App.SSHManager
+        # Ensure the backups directory exists (fresh installs may not have it yet)
+        $null = $ssh.InvokeRemote("mkdir -p /root/awg/backups")
         $uploadSuccess = $ssh.UploadFile($localPath, $remotePath)
 
         if (-not $uploadSuccess) {
-            throw (Get-String -Key "Error_BackupDownload")
+            throw (Get-String -Key "Error_BackupUpload")
         }
 
         Set-BusyState -Busy $true -Message (Get-String -Key "Restore_Restoring")
@@ -1174,7 +1221,7 @@ function Import-ServerConfig {
 
         $ok = Get-AWGConfigProperty -Object $result -Name 'ok'
         if ($ok) {
-            Set-BusyState -Busy $false -Message "Restored"
+            Set-BusyState -Busy $false -Message (Get-String -Key "Restore_Done")
             [System.Windows.Forms.MessageBox]::Show(
                 (Get-String -Key "Restore_Restored"),
                 (Get-String -Key "Msg_Info"),
@@ -1189,7 +1236,7 @@ function Import-ServerConfig {
         }
     }
     catch {
-        Set-BusyState -Busy $false -Message "Restore error"
+        Set-BusyState -Busy $false -Message (Get-String -Key "Restore_Error")
         [System.Windows.Forms.MessageBox]::Show(
             (Get-String -Key "Restore_Error" -Params $_.Exception.Message),
             (Get-String -Key "Msg_Error"),
@@ -1198,7 +1245,8 @@ function Import-ServerConfig {
     }
 }
 
-function Restart-AWGService {    $confirm = [System.Windows.Forms.MessageBox]::Show(
+function Restart-AWGService {
+        $confirm = [System.Windows.Forms.MessageBox]::Show(
         (Get-String -Key "Restart_Confirm"),
         (Get-String -Key "Restart_Confirm"),
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
@@ -1214,7 +1262,7 @@ function Restart-AWGService {    $confirm = [System.Windows.Forms.MessageBox]::S
 
         $ok = Get-AWGConfigProperty -Object $result -Name 'ok'
         if ($ok) {
-            Set-BusyState -Busy $false -Message "Service restarted"
+            Set-BusyState -Busy $false -Message (Get-String -Key "Restart_Done")
             [System.Windows.Forms.MessageBox]::Show(
                 (Get-String -Key "Restart_Restarted"),
                 (Get-String -Key "Msg_Info"),
@@ -1227,9 +1275,60 @@ function Restart-AWGService {    $confirm = [System.Windows.Forms.MessageBox]::S
         }
     }
     catch {
-        Set-BusyState -Busy $false -Message "Restart error"
+        Set-BusyState -Busy $false -Message (Get-String -Key "Restart_Error")
         [System.Windows.Forms.MessageBox]::Show(
             (Get-String -Key "Error_ServiceRestart" -Params $_.Exception.Message),
+            (Get-String -Key "Msg_Error"),
+            "OK",
+            [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+}
+
+function Update-ServerScripts {
+    if ($null -eq $script:App.ClientManager) {
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-String -Key "Msg_ConnectFirst"),
+            (Get-String -Key "Msg_Warning"),
+            "OK",
+            [System.Windows.Forms.MessageBoxIcon]::Warning)
+        return
+    }
+
+    # Yes = Russian pair, No = English pair, Cancel = abort
+    $answer = [System.Windows.Forms.MessageBox]::Show(
+        (Get-String -Key "UpdateScripts_Confirm"),
+        (Get-String -Key "Actions_UpdateScripts"),
+        [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
+        [System.Windows.Forms.MessageBoxIcon]::Question)
+
+    if ($answer -eq [System.Windows.Forms.DialogResult]::Cancel) { return }
+    $englishVersion = ($answer -eq [System.Windows.Forms.DialogResult]::No)
+
+    Set-BusyState -Busy $true -Message (Get-String -Key "UpdateScripts_Updating")
+
+    try {
+        $cm = $script:App.ClientManager
+        $result = $cm.UpdateScripts($englishVersion)
+
+        if ($result.Success) {
+            Set-BusyState -Busy $false -Message (Get-String -Key "UpdateScripts_Done")
+            [System.Windows.Forms.MessageBox]::Show(
+                (Get-String -Key "UpdateScripts_Done"),
+                (Get-String -Key "Msg_Info"),
+                "OK",
+                [System.Windows.Forms.MessageBoxIcon]::Information)
+            # Smoke test: the new script pair must answer list --json;
+            # doubles as a grid refresh
+            Refresh-ClientsList
+        }
+        else {
+            throw $result.Error
+        }
+    }
+    catch {
+        Set-BusyState -Busy $false -Message (Get-String -Key "App_Error")
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-String -Key "UpdateScripts_Error" -Params $_.Exception.Message),
             (Get-String -Key "Msg_Error"),
             "OK",
             [System.Windows.Forms.MessageBoxIcon]::Error)

@@ -1,7 +1,7 @@
 ﻿#requires -Version 7.5
 # =============================================================================
 #  EditClientForm.ps1 — Dialog for editing client parameters
-#  Version: 0.1
+#  Version: 0.3
 #  Description: Dialog for editing client configuration parameters:
 #               DNS, Endpoint, AllowedIPs, PersistentKeepalive.
 # =============================================================================
@@ -29,7 +29,7 @@ function Show-EditClientForm {
     
     $dialog = [System.Windows.Forms.Form]::new()
     $dialog.Text = Get-String -Key "EditClient_Title" -Params $clientName
-    $dialog.Size = [System.Drawing.Size]::new(500, 480)
+    $dialog.Size = [System.Drawing.Size]::new(500, 515)
     $dialog.StartPosition = "CenterParent"
     $dialog.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $dialog.MaximizeBox = $false
@@ -46,15 +46,46 @@ function Show-EditClientForm {
     $dialog.Controls.Add($lblLoading)
     [System.Windows.Forms.Application]::DoEvents()
     
+    $configLoaded = $false
     try {
         $cm = $script:App.ClientManager
         $currentConfig = $cm.GetClientConfig($clientName)
+        $configLoaded = $true
     } catch {
         $currentConfig = $null
     }
     
     $dialog.Controls.Remove($lblLoading)
-    
+
+    # === Expiration info (display only: server 'modify' has no expires support) ===
+    $expiryLine = ""
+    try {
+        $allClients = @($script:App.ClientManager.GetClients())
+        $clientInfo = $allClients |
+            Where-Object { [string](Get-AWGConfigProperty -Object $_ -Name 'name') -eq $clientName } |
+            Select-Object -First 1
+        $errProp = if ($clientInfo) { $clientInfo.PSObject.Properties['expires_at_error'] } else { $null }
+        if ($errProp -and $errProp.Value) {
+            # Non-null expires_at_error: expiry marker exists but cannot be parsed —
+            # show the problem instead of a misleading "Permanent"
+            $expiryLine = "{0} ⚠ {1}" -f (Get-String -Key "AddClient_ExpiresAt"), (Get-String -Key "Expiry_Unreadable")
+        }
+        elseif ($clientInfo -and $null -ne $clientInfo.PSObject.Properties['expires_at']) {
+            $expiresAt = Get-AWGConfigProperty -Object $clientInfo -Name 'expires_at'
+            $expiry = Get-AWGExpiryStatus -ExpiresAt $expiresAt
+            if ($expiry['ExpiryDate']) {
+                $expiryLine = "{0} {1}  ({2})" -f (Get-String -Key "AddClient_ExpiresAt"), $expiry['ExpiryDate'].ToString('dd.MM.yyyy HH:mm'), $expiry['Text']
+            }
+            else {
+                $expiryLine = "{0} {1}" -f (Get-String -Key "AddClient_ExpiresAt"), $expiry['Text']
+            }
+        }
+    }
+    catch {
+        # Expiry display is informational — never block the edit form on it
+        $expiryLine = ""
+    }
+
     # === Parse current values ===
     $currentDNS = "1.1.1.1, 1.0.0.1"
     $currentEndpoint = ""
@@ -176,7 +207,8 @@ function Show-EditClientForm {
     $dialog.Controls.Add($grpKeepalive)
     
     $numKeepalive = [System.Windows.Forms.NumericUpDown]::new()
-    $numKeepalive.Value = [int]($currentKeepalive -replace '\D', '')
+    $kaDigits = ($currentKeepalive -replace '\D', '')
+    $numKeepalive.Value = if ($kaDigits) { [int]$kaDigits } else { 25 }
     $numKeepalive.Minimum = 0
     $numKeepalive.Maximum = 65535
     $numKeepalive.Location = [System.Drawing.Point]::new(15, 25)
@@ -191,17 +223,26 @@ function Show-EditClientForm {
     $lblKeepaliveHint.Font = [System.Drawing.Font]::new("Segoe UI", 8)
     $grpKeepalive.Controls.Add($lblKeepaliveHint)
     
+    # === Expiration (read-only) ===
+    $lblExpires = [System.Windows.Forms.Label]::new()
+    $lblExpires.Location = [System.Drawing.Point]::new(15, 393)
+    $lblExpires.AutoSize = $true
+    $lblExpires.ForeColor = [System.Drawing.Color]::DarkSlateGray
+    $lblExpires.Font = [System.Drawing.Font]::new("Segoe UI", 8)
+    if ($expiryLine) { $lblExpires.Text = $expiryLine }
+    $dialog.Controls.Add($lblExpires)
+    
     # === Buttons ===
     $btnSave = [System.Windows.Forms.Button]::new()
     $btnSave.Text = Get-String -Key "EditClient_Save"
-    $btnSave.Location = [System.Drawing.Point]::new(185, 400)
+    $btnSave.Location = [System.Drawing.Point]::new(185, 425)
     $btnSave.Size = [System.Drawing.Size]::new(160, 32)
     $btnSave.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $dialog.Controls.Add($btnSave)
     
     $btnCancel = [System.Windows.Forms.Button]::new()
     $btnCancel.Text = Get-String -Key "EditClient_Cancel"
-    $btnCancel.Location = [System.Drawing.Point]::new(355, 400)
+    $btnCancel.Location = [System.Drawing.Point]::new(355, 425)
     $btnCancel.Size = [System.Drawing.Size]::new(85, 32)
     $btnCancel.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $btnCancel.Add_Click({ $dialog.Close() })
@@ -209,6 +250,13 @@ function Show-EditClientForm {
     
     # === Save handler ===
     $btnSave.Add_Click({
+        if (-not $configLoaded) {
+            [System.Windows.Forms.MessageBox]::Show(
+                (Get-String -Key "EditClient_LoadFailedGuard"),
+                (Get-String -Key "Msg_Warning"), "OK",
+                [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
         $btnSave.Enabled = $false
         $btnSave.Text = Get-String -Key "EditClient_Saving"
         [System.Windows.Forms.Application]::DoEvents()
@@ -238,7 +286,7 @@ function Show-EditClientForm {
                     else {
                         $eProp = $r.PSObject.Properties['error']
                         $items.Add(@{ Param = $ch.Param; Old = $ch.Old; New = $ch.New; Ok = $false;
-                                      Error = $(if ($eProp) { $eProp.Value } else { 'unknown error' }) })
+                                      Error = $(if ($eProp) { $eProp.Value } else { Get-String -Key "Error_ServerUnknown" }) })
                     }
                 }
                 catch {

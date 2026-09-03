@@ -1,7 +1,7 @@
 ﻿#requires -Version 7.5
 # =============================================================================
 #  Localization.ps1 — Application localization system
-#  Version: 0.1
+#  Version: 0.2
 #  Description: Loads language resources, detects system language,
 #               provides translation functions for UI elements.
 #               Supports dynamic language files (strings.??.json).
@@ -121,7 +121,7 @@ function Set-Language {
         return $true
     } else {
         if ($ShowWarningIfMissing) {
-            Write-Host "System langage: $(Get-SystemLanguage), localization file 'strings.$LanguageCode.json' is missing.  Using English."
+            Write-Host "System language: $(Get-SystemLanguage), localization file 'strings.$LanguageCode.json' is missing. Using English."
         }
         return $false
     }

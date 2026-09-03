@@ -1,7 +1,7 @@
 #requires -Version 7.5
 # =============================================================================
 #  StatsForm.ps1 — Traffic statistics dialog
-#  Version: 0.1
+#  Version: 0.2
 #  Description: Displays traffic statistics for all clients with
 #               received/sent bytes, last handshake time, and status.
 # =============================================================================
@@ -70,7 +70,7 @@ function Show-StatsForm {
     
     # === Total stats ===
     $lblTotal = [System.Windows.Forms.Label]::new()
-    $lblTotal.Text = "Total: 0 B received, 0 B sent"
+    $lblTotal.Text = (Get-String -Key "Stats_Total" -Params "0 B", "0 B")
     $lblTotal.Location = [System.Drawing.Point]::new(150, 420)
     $lblTotal.AutoSize = $true
     $lblTotal.Font = [System.Drawing.Font]::new("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
@@ -96,33 +96,34 @@ function Show-StatsForm {
                 $lastHs = Get-AWGConfigProperty -Object $stat -Name 'last_handshake'
                 $handshakeText = if ($lastHs -and [long]$lastHs -gt 0) {
                     try {
-                        $handshakeTime = [DateTimeOffset]::FromUnixTimeSeconds([long]$stat.last_handshake)
+                        $handshakeTime = [DateTimeOffset]::FromUnixTimeSeconds([long]$lastHs)
                         $timeAgo = [DateTimeOffset]::Now - $handshakeTime
                         
                         if ($timeAgo.TotalMinutes -lt 1) {
-                            "just now"
+                            Get-String -Key "Stats_Handshake_Now"
                         }
                         elseif ($timeAgo.TotalHours -lt 1) {
-                            "$([int]$timeAgo.TotalMinutes) min ago"
+                            Get-String -Key "Stats_Handshake_Min" -Params ([int]$timeAgo.TotalMinutes)
                         }
                         elseif ($timeAgo.TotalDays -lt 1) {
-                            "$([int]$timeAgo.TotalHours) h ago"
+                            Get-String -Key "Stats_Handshake_Hour" -Params ([int]$timeAgo.TotalHours)
                         }
                         else {
-                            "$([int]$timeAgo.TotalDays) d ago"
+                            Get-String -Key "Stats_Handshake_Day" -Params ([int]$timeAgo.TotalDays)
                         }
                     }
                     catch {
-                        $stat.last_handshake
+                        $lastHs
                     }
                 }
                 else {
-                    "never"
+                    Get-String -Key "Stats_Handshake_Never"
                 }
                 
                 $stName = Get-AWGConfigProperty -Object $stat -Name 'name'
                 $stIp   = Get-AWGConfigProperty -Object $stat -Name 'ip'
-                $stStat = Get-AWGConfigProperty -Object $stat -Name 'status'
+                # Use machine-stable status_code: server 'status' text is locale-dependent
+                $stStat = (Get-AWGStatusDisplay -StatusCode ([string](Get-AWGConfigProperty -Object $stat -Name 'status_code'))).Text
                 
                 [void]$dgvStats.Rows.Add(
                     $stName,

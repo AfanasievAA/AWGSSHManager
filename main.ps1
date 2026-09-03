@@ -5,9 +5,9 @@
 .DESCRIPTION
   Entry point for the AmneziaWG Admin GUI application. Manages you Quick Amnezia WireGuard installation through GUI Interface in Windows for easy deploy for remote access users
 .NOTES
-  Version:        0.03
+  Version:        0.5
   Author:         Andrew Afanasiev
-  Date:           02 Sep 2026
+  Date:           03 Sep 2026
   Contacts:       AfanasievAA@yandex.ru
 
 Requires powershell 7.5+ be installed locally to run.
@@ -20,10 +20,10 @@ Follow instructions. Then edit settings
 
 Then enjoy this GUI for your installation to create access to your LAN for corporate workers. 
 #> 
-
+#  main.ps1 — Entry point for AmneziaWG Admin (SSH.NET powered)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-$script:AppVersion = "0.03"
+$script:AppVersion = "0.5"
 
 # === Environment check ===
 if ($PSVersionTable.PSVersion.Major -lt 7 -or 
@@ -63,9 +63,12 @@ if ($needDownload) {
         Invoke-WebRequest -Uri $sshUrl -OutFile $sshZipPath -UseBasicParsing
         
         $sshZip = [System.IO.Compression.ZipFile]::OpenRead($sshZipPath)
-        $sshEntry = $sshZip.Entries | Where-Object { $_.FullName -eq "lib/net8.0/Renci.SshNet.dll" } | Select-Object -First 1
+        $sshEntry = $sshZip.Entries | Where-Object { $_.FullName -in @("lib/net8.0/Renci.SshNet.dll", "lib/netstandard2.0/Renci.SshNet.dll") } | Select-Object -First 1
         if ($sshEntry) {
             [System.IO.Compression.ZipFileExtensions]::ExtractToFile($sshEntry, $sshNetPath, $true)
+        }
+        else {
+            throw "Renci.SshNet.dll not found inside the NuGet package."
         }
         $sshZip.Dispose()
         Remove-Item $sshZipPath -Force
@@ -152,9 +155,6 @@ try {
     [System.Windows.Forms.Application]::EnableVisualStyles()
     
     $mainGui = New-MainForm -AppContext $script:App
-    $script:App.MainForm = $mainGui.Form
-    $script:MainForm = $mainGui.Form
-    
     [System.Windows.Forms.Application]::Run($mainGui.Form)
 }
 catch {
@@ -164,7 +164,8 @@ catch {
     exit 1
 }
 finally {
-    # Cleanup
+    # Cleanup: close the SSH session before releasing references
+    if ($script:App.SSHManager) { try { $script:App.SSHManager.Disconnect() } catch { } }
     $script:App.SSHManager = $null
     $script:App.ClientManager = $null
 }

@@ -1,7 +1,7 @@
 #requires -Version 7.5
 # =============================================================================
 #  Classes.ps1 — Core classes for AmneziaWG Admin (SSH.NET powered)
-#  Version: 0.3
+#  Version: 0.4
 #  Description: Defines SSHProfile, SSHManager, ProfileManager, and ClientManager.
 #               Uses SSH.NET for persistent, high-speed connections.
 # =============================================================================
@@ -73,43 +73,43 @@ class SSHManager {
     }
 
     hidden [hashtable] RunBash([string]$command, [string]$stdinData, [int]$timeoutSec) {
+        $cmd = $null
         try {
             $this.Connect()
             $cmd = $this.Client.CreateCommand($command)
             $cmd.CommandTimeout = [TimeSpan]::FromSeconds($timeoutSec)
             
             $outputStr = ""
-            
-            # Synchronous execution is used when no stdin data is needed (e.g., for root).
-            # Async is ONLY needed for non-root users to pass sudo password without deadlocking.
-            if ([string]::IsNullOrWhiteSpace($stdinData)) {
-                $outputStr = $cmd.Execute()
-            }
-            else {
-                $async = $cmd.BeginExecute()
-                
+
+            # stdin data must go to InputStream BEFORE BeginExecute:
+            # SSH.NET flushes it to the remote process at command start;
+            # OutputStream is a read stream — writing to it never delivers data.
+            if (-not [string]::IsNullOrWhiteSpace($stdinData)) {
                 $bytes = [System.Text.Encoding]::UTF8.GetBytes($stdinData)
-                $cmd.OutputStream.Write($bytes, 0, $bytes.Length)
-                $cmd.OutputStream.Close()
-                
-                $timeoutMs = $timeoutSec * 1000
-                $startTime = [System.Diagnostics.Stopwatch]::StartNew()
-                
-                while (-not $async.IsCompleted) {
-                    if ($startTime.ElapsedMilliseconds -gt $timeoutMs) {
-                        $cmd.CancelAsync()
-                        return @{
-                            Success  = $false
-                            Output   = $null
-                            Error    = (Get-String -Key "Error_Timeout" -Params $timeoutSec, "Command took too long")
-                            ExitCode = -1
-                        }
-                    }
-                    [System.Threading.Thread]::Sleep(20)
-                }
-                $cmd.EndExecute($async)
-                $outputStr = $cmd.Result
+                $cmd.InputStream.Write($bytes, 0, $bytes.Length)
             }
+
+            # Async is used for ALL commands: SSH.NET enforces CommandTimeout
+            # only in the async path; synchronous Execute() may hang forever.
+            $async = $cmd.BeginExecute()
+            
+            $timeoutMs = $timeoutSec * 1000
+            $startTime = [System.Diagnostics.Stopwatch]::StartNew()
+            
+            while (-not $async.IsCompleted) {
+                if ($startTime.ElapsedMilliseconds -gt $timeoutMs) {
+                    $cmd.CancelAsync()
+                    return @{
+                        Success  = $false
+                        Output   = $null
+                        Error    = (Get-String -Key "Error_Timeout" -Params $timeoutSec, "Command took too long")
+                        ExitCode = -1
+                    }
+                }
+                [System.Threading.Thread]::Sleep(20)
+            }
+            $cmd.EndExecute($async)
+            $outputStr = $cmd.Result
             
             return @{
                 Success  = ($cmd.ExitStatus -eq 0)
@@ -117,14 +117,15 @@ class SSHManager {
                 Error    = $cmd.Error
                 ExitCode = $cmd.ExitStatus
             }
-        }
-        catch {
+        } catch {
             return @{
                 Success  = $false
                 Output   = $null
                 Error    = $_.Exception.Message
                 ExitCode = -1
             }
+        } finally {
+            if ($cmd) { try { $cmd.Dispose() } catch { } }
         }
     }
 
@@ -132,7 +133,14 @@ class SSHManager {
         return $this.RunBash($remoteCommand, $null, 60)
     }
 
+    # 1-argument overload: PowerShell classes do not apply default parameter
+    # values during overload resolution, so InvokeCommand("cmd") without a
+    # timeout would fail with "Cannot find an overload ... argument count: 1"
     [hashtable] InvokeCommand([string]$arguments) {
+        return $this.InvokeCommand($arguments, 60)
+    }
+
+    [hashtable] InvokeCommand([string]$arguments, [int]$TimeoutSec) {
         $cleanArgs = $arguments.Trim()
         if ($cleanArgs -notmatch '(^|\s)--json(\s|$)') { $cleanArgs += " --json" }
         
@@ -148,7 +156,25 @@ class SSHManager {
             }
         }
         
-        return $this.RunBash($remoteCmd, $stdinData, 60)
+        return $this.RunBash($remoteCmd, $stdinData, $TimeoutSec)
+    }
+
+    # Runs a raw shell command as root: directly for root user, via sudo -S
+    # (password on stdin) otherwise. No --json wrapping — judged by exit code.
+    # $shellCommand must not contain single quotes.
+    [hashtable] InvokeRootShell([string]$shellCommand, [int]$TimeoutSec) {
+        $stdinData = $null
+        $remoteCmd = ""
+        if ($this.Profile.User -eq "root") {
+            $remoteCmd = $shellCommand
+        }
+        else {
+            $remoteCmd = "sudo -S -p '' bash -c '$shellCommand'"
+            if (-not [string]::IsNullOrWhiteSpace($this.Profile.PasswordEncrypted)) {
+                $stdinData = $this.Profile.PasswordEncrypted + "`n"
+            }
+        }
+        return $this.RunBash($remoteCmd, $stdinData, $TimeoutSec)
     }
 
     [bool] UploadFile([string]$localPath, [string]$remotePath) {
@@ -168,14 +194,20 @@ class SSHManager {
             $this.Connect()
             $fileInfo = [System.IO.FileInfo]::new($localPath)
             $this.ScpClient.Download($remotePath, $fileInfo)
-            return (Test-Path -LiteralPath $localPath)
+            # A zero-length file means the transfer failed; treat it as an error too
+            return ((Test-Path -LiteralPath $localPath) -and (Get-Item -LiteralPath $localPath).Length -gt 0)
         }
         catch {
+            Remove-Item -LiteralPath $localPath -Force -ErrorAction SilentlyContinue
             return $false
         }
     }
 
-    [bool] DownloadQR([string]$clientName, [string]$localPath, [string]$kind = 'png') {
+    [bool] DownloadQR([string]$clientName, [string]$localPath) {
+        return $this.DownloadQR($clientName, $localPath, 'png')
+    }
+
+    [bool] DownloadQR([string]$clientName, [string]$localPath, [string]$kind) {
         $suffix = if ($kind -eq 'vpnuri') { '.vpnuri.png' } else { '.png' }
         $paths = @(
             "/root/awg/$clientName$suffix",
@@ -189,7 +221,7 @@ class SSHManager {
 
     [string] GetLatestBackupPath() {
         $result = $this.InvokeRemote(
-            "/bin/ls -1t /root/awg/backups/awg_backup_*.tar.gz 2>/dev/null | head -1"
+            "sudo -n /bin/ls -1t /root/awg/backups/awg_backup_*.tar.gz 2>/dev/null | head -1"
         )
         if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.Output)) {
             throw (Get-String -Key "Error_BackupNotFound")
@@ -216,11 +248,6 @@ class SSHManager {
             }
         }
         return @{ Tools = $tools; Kernel = $kern }
-    }
-
-    [bool] TestConnection() {
-        $result = $this.InvokeCommand("list --json")
-        return $result.Success
     }
 
     [bool] DownloadConfig([string]$clientName, [string]$localPath) {
@@ -256,6 +283,10 @@ class ProfileManager {
     }
 
     [void] SaveProfile([SSHProfile]$profile) {
+        $this.SaveProfile($profile, $null)
+    }
+
+    [void] SaveProfile([SSHProfile]$profile, [string]$OriginalName) {
         $toSave = [SSHProfile]::new()
         $toSave.Name            = $profile.Name
         $toSave.Host            = $profile.Host
@@ -267,23 +298,32 @@ class ProfileManager {
             $toSave.PasswordEncrypted = ConvertFrom-SecureString $sec
         }
 
+        $nameToMatch = if ([string]::IsNullOrWhiteSpace($OriginalName)) { $profile.Name } else { $OriginalName }
         $existing = @($this.LoadAllProfilesRaw())
-        $filtered = @($existing | Where-Object { $_.Name -ne $profile.Name })
+        $filtered = @($existing | Where-Object { $_.Name -ne $nameToMatch })
         $filtered += $toSave
 
         $json = ConvertTo-Json -InputObject $filtered -Depth 5
         Set-Content -LiteralPath $this.ConfigPath -Value $json -Encoding UTF8
 
         try {
-            $acl = Get-Acl -LiteralPath $this.ConfigPath
+            # DACL-only read/write via .NET API: Get-Acl/Set-Acl pair round-trips
+            # descriptor sections that require SeSecurityPrivilege and fails
+            # on non-elevated processes; Access-only sections work without it
+            $fileInfo = [System.IO.FileInfo]::new($this.ConfigPath)
+            $sections = [System.Security.AccessControl.AccessControlSections]::Access
+            $acl = [System.IO.FileSystemAclExtensions]::GetAccessControl($fileInfo, $sections)
             $acl.SetAccessRuleProtection($true, $false)
             $rule = [System.Security.AccessControl.FileSystemAccessRule]::new(
                 [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
-                "FullControl", "Allow")
+                [System.Security.AccessControl.FileSystemRights]::FullControl,
+                [System.Security.AccessControl.AccessControlType]::Allow)
             $acl.AddAccessRule($rule)
-            Set-Acl -LiteralPath $this.ConfigPath -AclObject $acl
+            [System.IO.FileSystemAclExtensions]::SetAccessControl($fileInfo, $acl)
         }
         catch {
+            # Non-fatal: file already has default user-scoped ACL from %APPDATA%,
+            # and the stored password is DPAPI-encrypted per-user
             Write-Warning "Failed to restrict profile file permissions: $($_.Exception.Message)"
         }
     }
@@ -387,7 +427,15 @@ class ClientManager {
         return @($data)
     }
 
-    [PSCustomObject] AddClient([string]$name, [string]$expires = $null, [bool]$usePSK = $false) {
+    [PSCustomObject] AddClient([string]$name) {
+        return $this.AddClient($name, $null, $false)
+    }
+
+    [PSCustomObject] AddClient([string]$name, [string]$expires) {
+        return $this.AddClient($name, $expires, $false)
+    }
+
+    [PSCustomObject] AddClient([string]$name, [string]$expires, [bool]$usePSK) {
         $cmd = "add $($name.Trim())"
         if (-not [string]::IsNullOrWhiteSpace($expires)) {
             $cmd += " --expires=$expires"
@@ -408,12 +456,19 @@ class ClientManager {
         if ($param -notin $valid) {
             throw (Get-String -Key "Error_InvalidParam" -Params $param, ($valid -join ', '))
         }
-        $safeValue = $value -replace '"', '\"'
-        $result = $this.ssh.InvokeCommand("modify $($name.Trim()) $param `"$safeValue`"")
+        # Reject characters that could break out of the quoted remote shell argument
+        if ($value -match '["`$\\]') {
+            throw (Get-String -Key "Error_InvalidValue" -Params $param, $value)
+        }
+        $result = $this.ssh.InvokeCommand("modify $($name.Trim()) $param `"$value`"")
         return $this.ParseJson($result, "modify")
     }
 
-    [PSCustomObject] RegenClient([string]$name, [bool]$resetRoutes = $false) {
+    [PSCustomObject] RegenClient([string]$name) {
+        return $this.RegenClient($name, $false)
+    }
+
+    [PSCustomObject] RegenClient([string]$name, [bool]$resetRoutes) {
         $cmd = "regen $($name.Trim())"
         if ($resetRoutes) { $cmd += " --reset-routes" }
 
@@ -422,12 +477,12 @@ class ClientManager {
     }
 
     [PSCustomObject] RestoreBackup([string]$remotePath) {
-        $result = $this.ssh.InvokeCommand("restore $remotePath")
+        $result = $this.ssh.InvokeCommand("restore $remotePath --yes", 180)
         return $this.ParseJson($result, "restore")
     }
 
     [hashtable] CreateBackup() {
-        $result = $this.ssh.InvokeCommand("backup")
+        $result = $this.ssh.InvokeCommand("backup", 180)
         if (-not $result.Success) {
             return @{
                 Success = $false
@@ -444,12 +499,31 @@ class ClientManager {
         return $this.ParseJson($result, "restart")
     }
 
+    # Downloads manage_amneziawg.sh + awg_common.sh from the LATEST release as
+    # a PAIR: both staged as .new first, originals replaced only after both
+    # downloads succeed. A failed wget can never leave a half-updated pair
+    # (which the scripts refuse to run). Timeout 180 s: two HTTPS downloads.
+    [hashtable] UpdateScripts([bool]$englishVersion) {
+        $suffix = if ($englishVersion) { "_en" } else { "" }
+        $base   = "https://github.com/bivlked/amneziawg-installer/releases/latest/download"
+        $chain  =
+            "rm -f /root/awg/manage_amneziawg.sh.new /root/awg/awg_common.sh.new; " +
+            "wget -q -O /root/awg/manage_amneziawg.sh.new $base/manage_amneziawg$suffix.sh && " +
+            "wget -q -O /root/awg/awg_common.sh.new $base/awg_common$suffix.sh && " +
+            "chmod 700 /root/awg/manage_amneziawg.sh.new /root/awg/awg_common.sh.new && " +
+            "mv -f /root/awg/manage_amneziawg.sh.new /root/awg/manage_amneziawg.sh && " +
+            "mv -f /root/awg/awg_common.sh.new /root/awg/awg_common.sh || " +
+            "{ rm -f /root/awg/manage_amneziawg.sh.new /root/awg/awg_common.sh.new; exit 1; }"
+        return $this.ssh.InvokeRootShell($chain, 180)
+    }
+
     [string] GetClientConfig([string]$clientName) {
+        # sudo is required for non-root users to read /root/awg
         $result = $this.ssh.InvokeRemote(
-            "cat /root/awg/clients/$clientName/$clientName.conf 2>/dev/null || cat /root/awg/$clientName.conf 2>/dev/null"
+            "sudo -n cat /root/awg/clients/$clientName/$clientName.conf 2>/dev/null || sudo -n cat /root/awg/$clientName.conf 2>/dev/null"
         )
         if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.Output)) {
-            throw "Failed to read configuration for client '$clientName': $($result.Error)"
+            throw (Get-String -Key "Error_ConfigReadFailed" -Params $clientName, $result.Error)
         }
         return (($result.Output.TrimEnd()) -split '\r?\n') -join "`r`n"
     }

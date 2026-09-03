@@ -4,16 +4,18 @@
     "App_ServerInfo": "AWG Tools: $1 | Ядро: $2 | Клиентов: $3",
     "App_Connecting": "Подключение...",
     "App_Connected": "Подключено",
+    "App_ConnectedTo": "Подключено к $1",
     "App_Error": "Ошибка",
-    
+
     "Server_Label": "Сервер:",
     "Server_Connect": "Подключиться",
+    "Server_Disconnect": "Отключить",
     "Server_NewProfile": "Новый профиль...",
     "Server_EditProfile": "Изменить профиль...",
     "Server_DeleteProfile": "Удалить профиль...",
+    "Server_Disconnected": "● Отключено",
     "Profile_DeleteConfirm": "Вы уверены, что хотите удалить профиль '$1'?",
     "Error_ProfileDelete": "Ошибка удаления профиля: $1",
-    "Server_Disconnected": "● Отключено",
 
     "Actions_Title": "Действия",
     "Actions_Refresh": "Обновить список",
@@ -24,13 +26,14 @@
     "Actions_DownloadConfig": "Скачать .conf...",
     "Actions_Regenerate": "Перегенерировать...",
     "Actions_Stats": "Статистика",
-    "Actions_Backup": "Резервная копия AWG",
+    "Actions_Backup": "Резервная копия AWG в ф.",
+    "Actions_RestoreBackup": "Восстановить AWG из ф...",
     "Actions_Restart": "Перезапустить AWG",
-    
+
     "Language": "Язык",
     "Language_Russian": "Русский",
     "Language_English": "English",
-    
+
     "Column_Name": "Имя клиента",
     "Column_IP": "IP-адрес",
     "Column_IPv6": "IPv6",
@@ -38,7 +41,7 @@
     "Column_Expires": "Истекает",
     "Column_Rx": "Принято",
     "Column_Tx": "Отправлено",
-    
+
     "Status_Active": "Активен",
     "Status_Recent": "Недавно",
     "Status_Inactive": "Неактивен",
@@ -47,7 +50,7 @@
     "Status_NoData": "Нет данных",
     "Status_Expired": "Истёк",
     "Status_Permanent": "Бессрочный",
-    
+
     "AddClient_Title": "Добавить клиента",
     "AddClient_Name": "Имя клиента:",
     "AddClient_NameHint": "Допустимы: a-z, A-Z, 0-9, дефис, подчёркивание (макс. 32 симв.)",
@@ -70,11 +73,11 @@
     "AddClient_QRCode": "QR-код:",
     "AddClient_VpnUri": "vpn:// URI:",
     "AddClient_ExpiresAt": "Истекает:",
-    "AddClient_Exists": "Клиент с именем '$1' уже существует.",
     "AddClient_Error": "Ошибка создания клиента:",
-    
+
     "EditClient_Title": "Редактирование клиента — $1",
     "EditClient_Loading": "Загрузка текущей конфигурации...",
+    "EditClient_LoadFailedGuard": "Не удалось загрузить текущую конфигурацию. Сохранение отключено, чтобы не перезаписать значения сервера значениями по умолчанию.",
     "EditClient_DNS": "DNS-серверы",
     "EditClient_DNSHint": "Формат: IP1, IP2 (например: 8.8.8.8, 1.0.0.1)",
     "EditClient_Endpoint": "Endpoint (адрес сервера:порт)",
@@ -95,7 +98,7 @@
     "EditClient_RegenHint": "Не забудьте перегенерировать и передать .conf файл клиенту!",
     "EditClient_Result": "Результат",
     "EditClient_ErrorSaving": "Ошибка сохранения:",
-    
+
     "ViewConfig_Title": "Конфигурация — $1",
     "ViewConfig_Client": "Клиент: $1",
     "ViewConfig_QrKind": "Тип QR-кода:",
@@ -112,8 +115,7 @@
     "ViewConfig_QRNotFound": "QR-код не найден на сервере.",
     "ViewConfig_QRNotFoundDetail": "Возможные причины:\n• выбранного типа QR для этого клиента нет (например, .vpnuri.png генерируется не на всех версиях сервера);\n• файлы не были сгенерированы — выполните «Перегенерировать».",
     "ViewConfig_FileSaved": "Файл сохранён:",
-    "ViewConfig_SaveError": "Ошибка сохранения:",
-    
+
     "Profile_Title_Add": "Новый профиль сервера",
     "Profile_Title_Edit": "Редактирование профиля",
     "Profile_Connection": "Параметры подключения",
@@ -125,7 +127,6 @@
     "Profile_Key": "SSH-ключ (рекомендуется)",
     "Profile_KeyPath": "Путь к приватному ключу:",
     "Profile_Password": "Пароль",
-    "Profile_PasswordField": "Пароль:",
     "Profile_PasswordWarning": "⚠ Пароль хранится зашифрованным (DPAPI), но SSH-ключ безопаснее",
     "Profile_Create": "Создать",
     "Profile_Save": "Сохранить",
@@ -141,8 +142,7 @@
     "Profile_Test_Failed": "Не удалось подключиться: $1\n\nСохранить профиль всё равно?",
     "Profile_Test_Error": "Ошибка тестирования: $1\n\nСохранить профиль всё равно?",
     "Profile_Saved": "Профиль '$1' сохранён.",
-    "Profile_SaveError": "Ошибка сохранения профиля:",
-    
+
     "Stats_Title": "Статистика трафика",
     "Stats_Header": "Статистика трафика по клиентам",
     "Stats_Column_Client": "Клиент",
@@ -152,18 +152,21 @@
     "Stats_Column_Total": "Всего",
     "Stats_Column_Handshake": "Последний handshake",
     "Stats_Column_Status": "Статус",
+    "Stats_Handshake_Never": "никогда",
+    "Stats_Handshake_Now": "только что",
+    "Stats_Handshake_Min": "$1 мин назад",
+    "Stats_Handshake_Hour": "$1 ч назад",
+    "Stats_Handshake_Day": "$1 д назад",
     "Stats_Refresh": "Обновить",
     "Stats_Close": "Закрыть",
     "Stats_Total": "Итого: $1 принято, $2 отправлено",
     "Stats_Loading": "Получение статистики...",
-    "Stats_Error": "Ошибка загрузки статистики:",
-    
+
     "Msg_Warning": "Внимание",
     "Msg_Error": "Ошибка",
     "Msg_Info": "Информация",
     "Msg_Confirm": "Подтверждение",
     "Msg_CriticalError": "Критическая ошибка",
-    "Msg_OpenSSHMissing": "OpenSSH Client не найден в системе.\n\nУстановите его через:\nНастройки → Приложения → Дополнительные компоненты → OpenSSH Client\n\nИли через PowerShell (от администратора):\nAdd-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0",
     "Msg_PressEnter": "Нажмите Enter для выхода",
     "Msg_SelectClient": "Выберите клиента в таблице",
     "Msg_ConnectFirst": "Сначала подключитесь к серверу",
@@ -172,50 +175,46 @@
     "Msg_SelectProfileEdit": "Выберите профиль для редактирования.",
     "Msg_Busy": "Подождите завершения текущей операции.",
     "Msg_OperationInProgress": "Операция выполняется",
-    
+
     "Delete_Confirm": "Вы уверены, что хотите удалить клиента '$1'?\n\nЭто действие необратимо.",
     "Delete_Deleting": "Удаление клиента '$1'...",
     "Delete_Deleted": "Клиент '$1' удалён",
     "Delete_Error": "Ошибка удаления клиента:",
-    
+
     "Export_SaveConfig": "Сохранить конфигурацию клиента",
     "Export_Downloading": "Скачивание конфигурации...",
     "Export_Downloaded": "Файл сохранён: $1",
     "Export_Error": "Ошибка скачивания конфигурации:",
-    
+
     "Regen_Confirm": "Перегенерировать конфигурацию для '$1'?\n\nДа — с сбросом AllowedIPs к глобальному режиму\nНет — сохранить индивидуальные настройки",
     "Regen_Regenerating": "Перегенерация конфигурации '$1'...",
     "Regen_Regenerated": "Конфигурация для '$1' перегенерирована.\n\nНе забудьте передать новый .conf файл клиенту!",
     "Regen_Error": "Ошибка перегенерации:",
-    
+
     "Backup_Confirm": "Создать полную резервную копию сервера AmneziaWG?\n\nНа сервере будет создан архив: конфигурация сервера, ключи,\nконфигурации всех клиентов, данные сроков действия, cron.\nЗатем архив будет скачан на этот компьютер.\n\n⚠ Архив содержит ПРИВАТНЫЕ ключи — храните его в надёжном месте!",
     "Backup_Creating": "Создание архива на сервере (может занять время)...",
     "Backup_Finding": "Поиск созданного архива...",
     "Backup_Downloading": "Скачивание архива (может занять время)...",
     "Backup_Saved": "Резервная копия создана успешно!\n\nЛокальный файл: $1 ($2)\nАрхив на сервере: $3\n\nКопия архива также оставлена на сервере (/root/awg/backups/).\nВосстановление: переносите архив на сервер и выполните команду restore.\n\n⚠ Архив содержит приватные ключи сервера — храните в надёжном месте!",
     "Backup_Error": "Не удалось создать резервную копию:",
-    "Actions_RestoreBackup": "Восстановление AWG",
+
     "Restore_Confirm": "Восстановить сервер из локального файла бэкапа?\n\nЭто ПЕРЕЗАПИШЕТ текущую конфигурацию сервера, ключи и клиентов.\n\nФайл будет загружен на сервер и восстановлен.",
     "Restore_Uploading": "Загрузка архива на сервер...",
     "Restore_Restoring": "Восстановление AWG из архива...",
     "Restore_Restored": "Сервер успешно восстановлен из бэкапа.\n\nСлужба AWG была перезапущена.",
     "Restore_Error": "Не удалось восстановить бэкап:",
-    
+
     "Restart_Confirm": "Перезапустить сервис AmneziaWG на сервере?\n\nВсе активные соединения будут разорваны.",
     "Restart_Restarting": "Перезапуск сервиса AmneziaWG...",
     "Restart_Restarted": "Сервис AmneziaWG успешно перезапущен.",
     "Restart_Error": "Ошибка перезапуска сервиса:",
-    
+
     "Error_ProfileNoKeyOrPassword": "В профиле не задан ни приватный ключ, ни пароль.",
     "Error_PrivateKeyNotFound": "Файл приватного ключа не найден: $1",
-    "Error_PlinkNotFound": "Профиль использует аутентификацию по ПАРОЛЮ, но plink.exe не найден.\n\nВстроенный ssh.exe Windows не может передать пароль в неинтерактивном режиме — он молча ждёт ввода и завершается по таймауту.\n\nРешения:\n  1 (рекомендуется): настроить SSH-ключ;\n  2: установить PuTTY (https://www.putty.org) — приложение автоматически найдёт plink.exe/pscp.exe. GUI PuTTY не нужен.",
-    "Error_ConnectFailed": "SSH-подключение не удалось (код $1): $2",
     "Error_InvalidParam": "Недопустимый параметр: $1. Допустимые: $2",
     "Error_ConfigReadFailed": "Не удалось прочитать конфигурацию клиента '$1': $2",
     "Error_BackupNotFound": "Архивы бэкапа не найдены в /root/awg/backups/ на сервере",
-    "Error_PscpNotFound": "pscp.exe не найден рядом с plink.exe — скачивание при парольной аутентификации недоступно.",
     "Error_Timeout": "Таймаут выполнения команды ($1 с). Stderr: $2",
-    "Error_HostKey": "Не удалось принять ключ хоста: $1",
     "Error_ConnectToServer": "Не удалось подключиться к серверу: $1",
     "Error_ServerReturned": "Сервер вернул ошибку: $1",
     "Error_ServerUnknown": "неизвестная ошибка",
@@ -249,7 +248,32 @@
     "Error_InvalidName": "Имя содержит недопустимые символы",
     "Error_NameRequired": "Введите имя клиента",
     "Error_ClientNameInvalid": "Имя содержит недопустимые символы",
-    "App_ConnectedTo": "Подключено к $1",
-    "Server_Disconnect": "Отключить",
-    "Error_AWGNotFound": "Установка AWG не найдена. Установите вручную путём запуска:\r\n\r\nwget -O install_amneziawg_en.sh https://raw.githubusercontent.com/bivlked/amneziawg-installer/main/install_amneziawg_en.sh\r\n\r\nchmod +x install_amneziawg_en.sh\r\n\r\nsudo bash ./install_amneziawg_en.sh"
+    "Error_AWGNotFound": "Установка AWG не найдена. Установите вручную путём запуска:\r\n\r\nwget -O install_amneziawg_en.sh https://raw.githubusercontent.com/bivlked/amneziawg-installer/main/install_amneziawg_en.sh\r\n\r\nchmod +x install_amneziawg_en.sh\r\n\r\nsudo bash ./install_amneziawg_en.sh",
+    "App_Refreshing": "Обновление списка клиентов...",
+    "App_ListError": "Ошибка списка клиентов",
+    "Error_ClientList": "Ошибка получения списка клиентов: $1",
+    "Error_InvalidValue": "Недопустимое значение для $1: $2",
+    "Error_BackupUpload": "Не удалось загрузить архив на сервер",
+    "Regen_Done": "Конфигурация перегенерирована",
+    "Backup_Done": "Резервная копия сохранена",
+    "Restore_Done": "Восстановлено",
+    "Restart_Done": "Сервис перезапущен",
+    "Profile_Testing": "Проверка...",
+    "Profile_SelectKeyTitle": "Выбор приватного ключа",
+    "Backup_SaveTitle": "Сохранить резервную копию",
+    "Restore_SelectTitle": "Выберите файл бэкапа для восстановления",
+    "Error_ConnectFailed": "Ошибка. Подключение не выполнено",
+    "Expiry_Unreadable": "не читается",
+    "Actions_UpdateScripts": "Обновить скрипты...",
+    "UpdateScripts_Confirm": "Скачать и заменить серверные скрипты управления (manage_amneziawg.sh + awg_common.sh) из последнего релиза?\n\nПара заменяется только целиком; при сбое любого шага оригиналы остаются нетронутыми. Сервис AWG не перезапускается — следующая команда уже пойдёт через новые скрипты.\n\nДа — русская версия\nНет — английская версия\nОтмена — прервать",
+    "UpdateScripts_Updating": "Скачивание скриптов с GitHub (может занять время)...",
+    "UpdateScripts_Done": "Скрипты сервера успешно обновлены.\n\nСписок клиентов перезагружен для проверки.",
+    "UpdateScripts_Error": "Ошибка обновления скриптов: $1",
+    "ColumnTip_Name": "Имя клиента (маркер #_Name в серверном конфиге)",
+    "ColumnTip_IP": "IPv4-адрес внутри туннеля VPN",
+    "ColumnTip_IPv6": "IPv6-адрес внутри туннеля (пусто, если IPv6 отключён на сервере)",
+    "ColumnTip_Status": "Активность по времени последнего handshake (определяет сервер); «Истёк» вычисляется локально по дате окончания",
+    "ColumnTip_Expires": "Дата окончания срока, заданная при создании клиента (--expires).\n«не читается» — срок задан, но файл на сервере повреждён",
+    "ColumnTip_Rx": "Принято СЕРВЕРОМ от этого клиента (upload клиента)",
+    "ColumnTip_Tx": "Отправлено СЕРВЕРОМ этому клиенту (download клиента)"    
 }
