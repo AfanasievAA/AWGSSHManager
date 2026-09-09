@@ -1,7 +1,7 @@
 #requires -Version 7.5
 # =============================================================================
 #  Classes.ps1 — Core classes for AmneziaWG Admin (SSH.NET powered)
-#  Version: 0.4
+#  Version: 0.5
 #  Description: Defines SSHProfile, SSHManager, ProfileManager, and ClientManager.
 #               Uses SSH.NET for persistent, high-speed connections.
 # =============================================================================
@@ -500,21 +500,38 @@ class ClientManager {
     }
 
     # Downloads manage_amneziawg.sh + awg_common.sh from the LATEST release as
-    # a PAIR: both staged as .new first, originals replaced only after both
-    # downloads succeed. A failed wget can never leave a half-updated pair
-    # (which the scripts refuse to run). Timeout 180 s: two HTTPS downloads.
+    # a PAIR, verified with minisign signatures. The release public key is
+    # EMBEDDED here on purpose: a key downloaded next to the files would only
+    # verify whatever delivered it. Truncated/HTML-substituted downloads pass
+    # wget exit codes (and bash -n, per author's measurement) but not the
+    # signature. Originals are backed up before the swap: if the second mv
+    # fails (disk full, FS read-only), the rollback restores the previous
+    # working pair — a half-updated pair can never survive the chain.
     [hashtable] UpdateScripts([bool]$englishVersion) {
-        $suffix = if ($englishVersion) { "_en" } else { "" }
-        $base   = "https://github.com/bivlked/amneziawg-installer/releases/latest/download"
-        $chain  =
-            "rm -f /root/awg/manage_amneziawg.sh.new /root/awg/awg_common.sh.new; " +
-            "wget -q -O /root/awg/manage_amneziawg.sh.new $base/manage_amneziawg$suffix.sh && " +
-            "wget -q -O /root/awg/awg_common.sh.new $base/awg_common$suffix.sh && " +
-            "chmod 700 /root/awg/manage_amneziawg.sh.new /root/awg/awg_common.sh.new && " +
-            "mv -f /root/awg/manage_amneziawg.sh.new /root/awg/manage_amneziawg.sh && " +
-            "mv -f /root/awg/awg_common.sh.new /root/awg/awg_common.sh || " +
-            "{ rm -f /root/awg/manage_amneziawg.sh.new /root/awg/awg_common.sh.new; exit 1; }"
-        return $this.ssh.InvokeRootShell($chain, 180)
+        $keyLine = 'RWQXfpABHIpZPttqrwYrQNHRTk/iLIz4cVh9KkRwAElHP+CoW/NPEysN'
+        $suffix  = if ($englishVersion) { "_en" } else { "" }
+        $base    = 'https://github.com/bivlked/amneziawg-installer/releases/latest/download'
+        # Built from single-quoted PS strings: bash $vars must survive untouched
+        $chain =
+            'KEYF=/root/awg/.awgadmin_verify.pub; ' +
+            'M=/root/awg/manage_amneziawg.sh; C=/root/awg/awg_common.sh; ' +
+            'rm -f "$M.new" "$C.new" "$M.new.minisig" "$C.new.minisig" "$M.bak" "$C.bak"; ' +
+            'echo "untrusted comment: AmneziaWG release signing key (embedded in AWG Admin)" > "$KEYF"; ' +
+            ('echo "' + $keyLine + '" >> "$KEYF"; ') +
+            'if command -v minisign >/dev/null 2>&1 || { apt-get update -qq; DEBIAN_FRONTEND=noninteractive apt-get install -y minisign; }; then ' +
+            'if wget -q -O "$M.new" "' + $base + '/manage_amneziawg' + $suffix + '.sh" ' +
+            '&& wget -q -O "$C.new" "' + $base + '/awg_common' + $suffix + '.sh" ' +
+            '&& wget -q -O "$M.new.minisig" "' + $base + '/manage_amneziawg' + $suffix + '.sh.minisig" ' +
+            '&& wget -q -O "$C.new.minisig" "' + $base + '/awg_common' + $suffix + '.sh.minisig" ' +
+            '&& minisign -V -q -p "$KEYF" -m "$M.new" -x "$M.new.minisig" ' +
+            '&& minisign -V -q -p "$KEYF" -m "$C.new" -x "$C.new.minisig" ' +
+            '&& chmod 700 "$M.new" "$C.new" ' +
+            '&& cp -p "$M" "$M.bak" && cp -p "$C" "$C.bak" ' +
+            '&& mv -f "$M.new" "$M" && mv -f "$C.new" "$C"; then ' +
+            'rm -f "$KEYF" "$M.new.minisig" "$C.new.minisig" "$M.bak" "$C.bak"; exit 0; fi; fi; ' +
+            'mv -f "$M.bak" "$M" 2>/dev/null; mv -f "$C.bak" "$C" 2>/dev/null; ' +
+            'rm -f "$KEYF" "$M.new" "$C.new" "$M.new.minisig" "$C.new.minisig" "$M.bak" "$C.bak" 2>/dev/null; exit 1'
+        return $this.ssh.InvokeRootShell($chain, 300)
     }
 
     [string] GetClientConfig([string]$clientName) {

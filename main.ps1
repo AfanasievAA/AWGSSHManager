@@ -5,9 +5,9 @@
 .DESCRIPTION
   Entry point for the AmneziaWG Admin GUI application. Manages you Quick Amnezia WireGuard installation through GUI Interface in Windows for easy deploy for remote access users
 .NOTES
-  Version:        0.5
+  Version:        0.6
   Author:         Andrew Afanasiev
-  Date:           03 Sep 2026
+  Date:           09 Sep 2026
   Contacts:       AfanasievAA@yandex.ru
 
 Requires powershell 7.5+ be installed locally to run.
@@ -23,7 +23,7 @@ Then enjoy this GUI for your installation to create access to your LAN for corpo
 #  main.ps1 — Entry point for AmneziaWG Admin (SSH.NET powered)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-$script:AppVersion = "0.5"
+$script:AppVersion = "0.6"
 
 # === Environment check ===
 if ($PSVersionTable.PSVersion.Major -lt 7 -or 

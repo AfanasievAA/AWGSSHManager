@@ -266,7 +266,7 @@
     "Expiry_Unreadable": "unreadable",
     "Actions_UpdateScripts": "Update Scripts...",
     "UpdateScripts_Confirm": "Download and replace server management scripts (manage_amneziawg.sh + awg_common.sh) from the latest release?\n\nThe pair is always replaced together; originals stay intact if any step fails. AWG service is not restarted — the next command already runs on the new scripts.\n\nYes — Russian version\nNo — English version\nCancel — abort",
-    "UpdateScripts_Updating": "Downloading scripts from GitHub (may take a while)...",
+    "UpdateScripts_Updating": "Downloading scripts from GitHub and verifying signature (may take a while)...",
     "UpdateScripts_Done": "Server scripts updated successfully.\n\nClient list was reloaded as a smoke test.",
     "UpdateScripts_Error": "Error updating scripts: $1",
     "ColumnTip_Name": "Client name (from the #_Name marker in the server config)",
